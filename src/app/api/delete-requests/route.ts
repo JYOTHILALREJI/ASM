@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       data: {
         deleteRequests: deleteRequests.map((r) => ({
           ...r,
+          reason: r.reason || null,
           reviewedAt: r.reviewedAt?.toISOString() || null,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
@@ -66,7 +67,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { employeeId, requestedBy } = body;
+    const { employeeId, requestedBy, reason } = body;
 
     if (!employeeId || !requestedBy) {
       return NextResponse.json(
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
         data: {
           employeeId,
           requestedBy,
+          reason: reason || null,
           status: 'pending',
         },
         include: {
@@ -123,7 +125,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId: admin.id,
             title: 'New Delete Request',
-            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).`,
+            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).${reason ? ` Reason: ${reason}` : ''}`,
             type: 'request',
           },
         });

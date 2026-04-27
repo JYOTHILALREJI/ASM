@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 export async function GET() {
   try {
     const sites = await db.site.findMany({
-      select: { id: true, name: true },
+      select: { id: true, name: true, createdAt: true },
       orderBy: { name: 'asc' },
     });
 
@@ -29,6 +29,7 @@ export async function GET() {
 
     const sitesWithCounts = sites.map((site) => ({
       ...site,
+      createdAt: site.createdAt.toISOString(),
       employeeCount: countMap.get(site.name) || 0,
     }));
 
@@ -87,6 +88,79 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, name } = body;
+
+    if (!id || !name || typeof name !== 'string' || name.trim().length === 0) {
+      return NextResponse.json(
+        { success: false, error: 'Site id and new name are required' },
+        { status: 400 }
+      );
+    }
+
+    const trimmedName = name.trim();
+
+    // Check site exists
+    const existing = await db.site.findUnique({ where: { id } });
+    if (!existing) {
+      return NextResponse.json(
+        { success: false, error: 'Site not found' },
+        { status: 404 }
+      );
+    }
+
+    // Check uniqueness (excluding current site)
+    const duplicate = await db.site.findFirst({
+      where: {
+        name: trimmedName,
+        id: { not: id },
+      },
+    });
+
+    if (duplicate) {
+      return NextResponse.json(
+        { success: false, error: 'A site with this name already exists' },
+        { status: 409 }
+      );
+    }
+
+    const oldName = existing.name;
+
+    // Update site name
+    const site = await db.site.update({
+      where: { id },
+      data: { name: trimmedName },
+    });
+
+    // Update all employees who were assigned to the old site name
+    if (oldName !== trimmedName) {
+      await db.employee.updateMany({
+        where: { currentSite: oldName },
+        data: { currentSite: trimmedName },
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        site: {
+          ...site,
+          createdAt: site.createdAt.toISOString(),
+        },
+        oldName,
+      },
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(

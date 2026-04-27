@@ -8,7 +8,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { requestedBy } = body;
+    const { requestedBy, reason } = body;
 
     if (!requestedBy) {
       return NextResponse.json(
@@ -46,6 +46,7 @@ export async function POST(
         data: {
           employeeId: id,
           requestedBy,
+          reason: reason || null,
           status: 'pending',
         },
         include: {
@@ -72,7 +73,7 @@ export async function POST(
           data: {
             userId: admin.id,
             title: 'Delete Request Pending',
-            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}). Please review.`,
+            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).${reason ? ` Reason: ${reason}` : ''} Please review.`,
             type: 'request',
           },
         });

@@ -60,16 +60,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog';
+// AlertDialog removed - now using Dialog for deletion
 import {
   Select,
   SelectContent,
@@ -312,6 +303,7 @@ export function EmployeePage() {
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteReason, setDeleteReason] = useState('');
 
   // Form state
   const [formTab, setFormTab] = useState('personal');
@@ -494,6 +486,7 @@ export function EmployeePage() {
 
   const openDeleteDialog = (employee: Employee) => {
     setDeletingEmployee(employee);
+    setDeleteReason('');
     setDeleteDialogOpen(true);
   };
 
@@ -621,11 +614,11 @@ export function EmployeePage() {
           toast({ title: 'Error', description: json.error || 'Failed to delete employee', variant: 'destructive' });
         }
       } else {
-        // Admin: submit delete request for approval
+        // Admin: submit delete request for approval with reason
         const res = await fetch(`/api/employees/${deletingEmployee.id}/delete-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ requestedBy: user.id }),
+          body: JSON.stringify({ requestedBy: user.id, reason: deleteReason.trim() || undefined }),
         });
         const json = await res.json();
         if (json.success) {
@@ -1680,39 +1673,52 @@ export function EmployeePage() {
       {/* ═══════════════════════════════════════════════════════════════════
           DELETE CONFIRMATION DIALOG
          ═══════════════════════════════════════════════════════════════════ */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-slate-800 border-slate-700">
-          <AlertDialogHeader>
-            <div className="flex items-center gap-3 mb-2">
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-slate-200">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-500/15">
                 <Trash2 className="h-5 w-5 text-red-400" />
               </div>
-              <AlertDialogTitle className="text-white">
+              <DialogTitle className="text-white">
                 {user?.role === 'super_admin' ? 'Delete Employee' : 'Request Employee Deletion'}
-              </AlertDialogTitle>
+              </DialogTitle>
             </div>
-            <AlertDialogDescription className="text-slate-400">
+            <DialogDescription className="text-slate-400">
               Are you sure you want to{' '}
               {user?.role === 'super_admin' ? 'delete' : 'request deletion for'}{' '}
               <span className="text-white font-medium">{deletingEmployee?.fullName}</span>
               {' '}({deletingEmployee?.employeeId})?
-              <br /><br />
+              <br />
               {user?.role === 'super_admin' ? (
-                <span>This action cannot be undone. The employee will be permanently removed from the system.</span>
+                <span className="mt-1 block">This action cannot be undone. The employee will be permanently removed.</span>
               ) : (
-                <span>This will mark the employee as &quot;Pending Deletion&quot;. A super admin will need to approve this request before the employee is permanently removed.</span>
+                <span className="mt-1 block">A super admin will review and approve this request.</span>
               )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:text-white">
+            </DialogDescription>
+          </DialogHeader>
+          {user?.role !== 'super_admin' && (
+            <div className="space-y-2">
+              <Label className="text-slate-300 text-sm">Reason for deletion</Label>
+              <Textarea
+                placeholder="Provide a reason for deleting this employee..."
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 min-h-[80px] resize-none"
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              className="bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600 hover:text-white"
+            >
               Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={(e) => {
-                e.preventDefault();
-                handleDelete();
-              }}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
               disabled={isDeleting}
               className="bg-red-500 hover:bg-red-600 text-white"
             >
@@ -1724,10 +1730,10 @@ export function EmployeePage() {
               ) : (
                 user?.role === 'super_admin' ? 'Delete Employee' : 'Request Deletion'
               )}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

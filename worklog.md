@@ -194,3 +194,24 @@ Stage Summary:
 - Drag-and-drop and click-to-upload both supported
 - Photo displays in employee list (via EmployeeAvatar), details dialog, and attendance page
 - ESLint passes with 0 errors
+
+---
+Task ID: Feature-2
+Agent: Main Coordinator
+Task: Deletion reason, site edit, full page employee view, add employees to site with transfer
+
+Work Log:
+- Updated Prisma schema: added `reason` field to DeleteRequest model, pushed to DB
+- Updated `/api/sites` GET to include `createdAt`, added PUT endpoint for editing site names (cascades name change to all employees)
+- Updated `/api/employees/[id]/delete-request` POST to accept and store `reason`
+- Updated `/api/delete-requests` POST and GET to handle `reason` field
+- Rewrote sites-page.tsx with sub-view system (list ↔ employees), edit site dialog, site created date, AddEmployeeCombobox with site markers, employee transfer, full page employee table
+- Updated employee-page.tsx: Dialog with reason textarea for admin deletion, sends reason with delete request
+- Updated notification-page.tsx: added `reason` to DeleteRequest interface, displayed reason in RequestCard
+- Verified attendance page already has site name column in list view
+
+Stage Summary:
+- Deletion reason flow: admin enters reason → stored in DB → displayed on super admin notification page
+- Site management: edit names, view created dates, full page employee management
+- Employee assignment: searchable dropdown with site markers, automatic transfer between sites
+- All changes compile and run without errors

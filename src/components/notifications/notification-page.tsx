@@ -65,6 +65,7 @@ interface DeleteRequest {
   id: string;
   employeeId: string;
   requestedBy: string;
+  reason: string | null;
   status: 'pending' | 'approved' | 'rejected';
   reviewedBy: string | null;
   reviewedAt: string | null;
@@ -361,6 +362,11 @@ function RequestCard({
               <span>Position: {request.employee.position}</span>
             )}
           </div>
+          {request.reason && (
+            <div className="mt-1.5 text-xs text-slate-300 bg-slate-700/30 rounded px-2 py-1">
+              <span className="text-slate-500 font-medium">Reason: </span>{request.reason}
+            </div>
+          )}
           {request.reviewed && request.reviewedAt && (
             <div className="mt-2 text-xs text-slate-500">
               Reviewed by {request.reviewed.name} on {formatDate(request.reviewedAt)}

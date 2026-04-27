@@ -117,6 +117,7 @@ model DeleteRequest {
   id          String   @id @default(cuid())
   employeeId  String
   requestedBy String
+  reason      String?
   status      String   @default("pending") // "pending", "approved", "rejected"
   reviewedBy  String?
   reviewedAt  DateTime?
