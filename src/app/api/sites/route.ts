@@ -8,9 +8,33 @@ export async function GET() {
       orderBy: { name: 'asc' },
     });
 
+    // Get employee counts per site
+    const employeesBySite = await db.employee.groupBy({
+      by: ['currentSite'],
+      where: {
+        currentSite: { not: null },
+        status: { not: 'deleted' },
+      },
+      _count: {
+        currentSite: true,
+      },
+    });
+
+    const countMap = new Map<string, number>();
+    for (const row of employeesBySite) {
+      if (row.currentSite) {
+        countMap.set(row.currentSite, row._count.currentSite);
+      }
+    }
+
+    const sitesWithCounts = sites.map((site) => ({
+      ...site,
+      employeeCount: countMap.get(site.name) || 0,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: { sites },
+      data: { sites: sitesWithCounts },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
@@ -63,6 +87,52 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Internal server error';
+    return NextResponse.json(
+      { success: false, error: message },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { id, name } = body;
+
+    if (!id && !name) {
+      return NextResponse.json(
+        { success: false, error: 'Site id or name is required' },
+        { status: 400 }
+      );
+    }
+
+    // Find the site
+    const site = id
+      ? await db.site.findUnique({ where: { id } })
+      : await db.site.findUnique({ where: { name } });
+
+    if (!site) {
+      return NextResponse.json(
+        { success: false, error: 'Site not found' },
+        { status: 404 }
+      );
+    }
+
+    // Unassign all employees from this site (set currentSite to null)
+    await db.employee.updateMany({
+      where: { currentSite: site.name },
+      data: { currentSite: null },
+    });
+
+    // Delete the site
+    await db.site.delete({ where: { id: site.id } });
+
+    return NextResponse.json({
+      success: true,
+      data: { message: `Site "${site.name}" deleted successfully. Employees have been unassigned.` },
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(

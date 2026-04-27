@@ -18,33 +18,6 @@ function getWorkingDaysInMonth(year: number, month: number): number {
   return workingDays;
 }
 
-// Calculate star rating for an employee for a given month
-async function recalculateRating(employeeId: string, year: number, month: number): Promise<number> {
-  const totalWorkingDays = getWorkingDaysInMonth(year, month);
-
-  if (totalWorkingDays === 0) return 0;
-
-  // Get all attendance records for the employee in the given month
-  const records = await db.attendance.findMany({
-    where: {
-      employeeId,
-      date: {
-        gte: `${year}-${String(month).padStart(2, '0')}-01`,
-        lt: `${year}-${String(month).padStart(2, '0')}-31`,
-      },
-    },
-  });
-
-  const goodDays = records.filter(
-    (r) => r.status === 'present' || r.status === 'overtime'
-  ).length;
-
-  const rating = (goodDays / totalWorkingDays) * 5.0;
-
-  // Clamp between 0.0 and 5.0
-  return Math.round(Math.max(0, Math.min(5, rating)) * 10) / 10;
-}
-
 // Check for consecutive absences ending on the given date
 async function checkConsecutiveAbsences(
   employeeId: string,
@@ -183,6 +156,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get existing attendance record to handle overtime rating adjustment
+    const existingRecord = await db.attendance.findUnique({
+      where: {
+        employeeId_date: { employeeId, date },
+      },
+    });
+
     // Upsert attendance record
     const attendance = await db.attendance.upsert({
       where: {
@@ -203,17 +183,30 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Parse year and month from date for rating calculation
-    const [yearStr, monthStr] = date.split('-').map(Number);
+    // Adjust rating based on overtime: +0.2 stars per overtime hour
+    let rating = employee.rating;
+    const oldOvertimeHours = existingRecord?.overtimeHours || 0;
+    const newOvertimeHours = overtimeHours || 0;
+    const wasOvertime = existingRecord?.status === 'overtime';
+    const isOvertime = status === 'overtime';
 
-    // Recalculate star rating
-    const rating = await recalculateRating(employeeId, yearStr, monthStr);
+    // Calculate the net change in overtime bonus
+    let overtimeBonusDelta = 0;
+    if (wasOvertime && !isOvertime) {
+      // Removed overtime: subtract the old bonus
+      overtimeBonusDelta = -(oldOvertimeHours * 0.2);
+    } else if (isOvertime) {
+      // Added or updated overtime: add new bonus, subtract old if existed
+      overtimeBonusDelta = (newOvertimeHours * 0.2) - (wasOvertime ? oldOvertimeHours * 0.2 : 0);
+    }
 
-    // Update employee rating
-    await db.employee.update({
-      where: { id: employeeId },
-      data: { rating },
-    });
+    if (overtimeBonusDelta !== 0) {
+      rating = Math.max(0, Math.min(5, Math.round((rating + overtimeBonusDelta) * 10) / 10));
+      await db.employee.update({
+        where: { id: employeeId },
+        data: { rating },
+      });
+    }
 
     // Check for consecutive absences (auto-warning)
     if (status === 'absent') {
@@ -230,6 +223,16 @@ export async function POST(request: NextRequest) {
         await db.$transaction(async (tx) => {
           // Find an admin to set as createdBy - use first super admin
           const adminId = superAdmins.length > 0 ? superAdmins[0].id : '';
+
+          // Deduct 0.5 stars for auto-generated warning
+          const emp = await tx.employee.findUnique({ where: { id: employeeId }, select: { rating: true } });
+          if (emp) {
+            const newRating = Math.max(0, Math.round((emp.rating - 0.5) * 10) / 10);
+            await tx.employee.update({
+              where: { id: employeeId },
+              data: { rating: newRating },
+            });
+          }
 
           const warning = await tx.warning.create({
             data: {

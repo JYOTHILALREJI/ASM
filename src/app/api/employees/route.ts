@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
       passportStatus: body.passportStatus || null,
       idStatus: body.idStatus || null,
       currentSite: body.currentSite || null,
-      rating: 0,
+      rating: 5,
       status: 'active',
       photo: body.photo || null,
     };

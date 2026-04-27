@@ -10,6 +10,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -37,6 +38,7 @@ interface NavItem {
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'employees', label: 'Employees', icon: Users },
+  { id: 'sites', label: 'Sites', icon: Building2 },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
   { id: 'notifications', label: 'Notifications', icon: Bell },
   { id: 'admins', label: 'Create Admins', icon: Shield, roles: ['super_admin'] },

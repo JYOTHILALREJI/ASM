@@ -12,6 +12,7 @@ import { EmployeePage } from '@/components/employees/employee-page';
 import { AttendancePage } from '@/components/attendance/attendance-page';
 import { NotificationPage } from '@/components/notifications/notification-page';
 import { AdminPage } from '@/components/admins/admin-page';
+import { SitesPage } from '@/components/sites/sites-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -54,6 +55,8 @@ function MainLayout() {
         return <DashboardPage />;
       case 'employees':
         return <EmployeePage />;
+      case 'sites':
+        return <SitesPage />;
       case 'attendance':
         return <AttendancePage />;
       case 'notifications':

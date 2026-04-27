@@ -100,9 +100,16 @@ export async function POST(request: NextRequest) {
         },
         include: {
           employee: {
-            select: { fullName: true, employeeId: true },
+            select: { fullName: true, employeeId: true, rating: true },
           },
         },
+      });
+
+      // Deduct 1 star for the fine
+      const newRating = Math.max(0, Math.round((newFine.employee.rating - 1) * 10) / 10);
+      await tx.employee.update({
+        where: { id: employeeId },
+        data: { rating: newRating },
       });
 
       // Create notification for super admins
