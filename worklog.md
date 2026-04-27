@@ -215,3 +215,24 @@ Stage Summary:
 - Site management: edit names, view created dates, full page employee management
 - Employee assignment: searchable dropdown with site markers, automatic transfer between sites
 - All changes compile and run without errors
+
+---
+Task ID: Feature-3
+Agent: Main Coordinator
+Task: Attendance page - list view reverse dates, calendar view search, site filter, site names
+
+Work Log:
+- Added `site` query parameter to `/api/employees` GET route for filtering by currentSite
+- Completely rewrote attendance-page.tsx with the following new features:
+  - List View - Reverse date columns for current month with relative date labels (Today, Yesterday, 2 days ago...) in reverse order; past months display in normal forward order (1, 2, 3...)
+  - Calendar View - Main search bar disabled with overlay message "Search in employee dropdown"
+  - Calendar View - Custom SearchableEmployeeSelect component with built-in search (filters by name, ID, or site)
+  - Custom SiteFilter component fetching sites from /api/sites, supports search, filters employees by site
+  - Site names displayed as emerald badges alongside employee names in all views
+  - Changed toggle button colors from blue to emerald for consistency
+  - Wider day columns in list view (w-16) to accommodate relative date labels
+
+Stage Summary:
+- Files modified: src/app/api/employees/route.ts, src/components/attendance/attendance-page.tsx
+- New components: SearchableEmployeeSelect, SiteFilter (within attendance-page.tsx)
+- No lint errors, no compilation errors

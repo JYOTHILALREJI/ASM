@@ -56,6 +56,11 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
+    const siteFilter = searchParams.get('site') || '';
+    if (siteFilter) {
+      where.currentSite = siteFilter;
+    }
+
     if (search) {
       where.OR = [
         { fullName: { contains: search } },

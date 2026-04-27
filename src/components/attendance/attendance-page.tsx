@@ -9,6 +9,8 @@ import {
   Check,
   Clock,
   Search,
+  MapPin,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +36,11 @@ interface Employee {
   employeeId: string;
   currentSite: string | null;
   status: string;
+}
+
+interface SiteOption {
+  id: string;
+  name: string;
 }
 
 interface AttendanceRecord {
@@ -85,6 +92,24 @@ function isFutureDate(day: number, month: number, year: number): boolean {
 
 function isFriday(year: number, month: number, day: number): boolean {
   return new Date(year, month - 1, day).getDay() === 5;
+}
+
+function getRelativeDateLabel(day: number, month: number, year: number): string | null {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(year, month - 1, day);
+  target.setHours(0, 0, 0, 0);
+  const diffMs = today.getTime() - target.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays === 2) return '2 days ago';
+  if (diffDays === 3) return '3 days ago';
+  if (diffDays === 4) return '4 days ago';
+  if (diffDays === 5) return '5 days ago';
+  if (diffDays === 6) return '6 days ago';
+  return null; // older than 6 days — just show day number
 }
 
 const STATUS_CONFIG: Record<StatusOption, { label: string; short: string; color: string; dotColor: string }> = {
@@ -196,6 +221,133 @@ function StatusDropdown({
   );
 }
 
+/* ───────── Searchable Employee Dropdown (for Calendar view) ───────── */
+interface SearchableEmployeeSelectProps {
+  employees: Employee[];
+  selectedEmployeeId: string;
+  onSelect: (id: string) => void;
+}
+
+function SearchableEmployeeSelect({
+  employees,
+  selectedEmployeeId,
+  onSelect,
+}: SearchableEmployeeSelectProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const selectedEmployee = employees.find((e) => e.id === selectedEmployeeId);
+
+  const filtered = search
+    ? employees.filter(
+        (e) =>
+          e.fullName.toLowerCase().includes(search.toLowerCase()) ||
+          e.employeeId.toLowerCase().includes(search.toLowerCase()) ||
+          (e.currentSite || '').toLowerCase().includes(search.toLowerCase())
+      )
+    : employees;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative w-full max-w-md">
+      <label className="text-sm text-slate-400 mb-2 block font-medium">Select Employee</label>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 w-full h-10 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm text-white hover:bg-slate-800 transition-colors text-left"
+      >
+        {selectedEmployee ? (
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <span className="truncate">{selectedEmployee.fullName}</span>
+            <span className="text-slate-500 text-xs">({selectedEmployee.employeeId})</span>
+            {selectedEmployee.currentSite && (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
+                {selectedEmployee.currentSite}
+              </Badge>
+            )}
+          </div>
+        ) : (
+          <span className="text-slate-500">Select employee...</span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-800 border border-slate-600 rounded-lg shadow-xl shadow-black/40 overflow-hidden">
+          <div className="p-2 border-b border-slate-700">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by name, ID, or site..."
+                className="w-full h-8 pl-8 pr-3 bg-slate-900 border border-slate-600 rounded-md text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-64 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-6 text-center text-sm text-slate-500">No employees found</div>
+            ) : (
+              filtered.map((emp) => (
+                <button
+                  key={emp.id}
+                  type="button"
+                  onClick={() => {
+                    onSelect(emp.id);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors hover:bg-slate-700/50',
+                    emp.id === selectedEmployeeId ? 'bg-slate-700/70 text-white' : 'text-slate-300'
+                  )}
+                >
+                  <span className="truncate flex-1">{emp.fullName}</span>
+                  <span className="text-slate-500 text-xs shrink-0">({emp.employeeId})</span>
+                  {emp.currentSite && (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
+                      {emp.currentSite}
+                    </Badge>
+                  )}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ───────── List View ───────── */
 interface ListViewProps {
   employees: Employee[];
@@ -206,6 +358,7 @@ interface ListViewProps {
   month: number;
   year: number;
   loading: boolean;
+  isCurrentMonthView: boolean;
   onStatusChange: (employeeId: string, date: string, status: StatusOption, overtimeHours?: number | null) => void;
 }
 
@@ -218,6 +371,7 @@ function ListView({
   month,
   year,
   loading,
+  isCurrentMonthView,
   onStatusChange,
 }: ListViewProps) {
   const [dropdown, setDropdown] = useState<{
@@ -227,6 +381,31 @@ function ListView({
     overtimeHours: number | null;
     position: { top: number; left: number };
   } | null>(null);
+
+  // For current month: reverse the days order, for past months: normal order
+  const displayDays = useMemo(() => {
+    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    return isCurrentMonthView ? days.reverse() : days;
+  }, [daysInMonth, isCurrentMonthView]);
+
+  // Get label for each day column header
+  const getDayLabel = useCallback(
+    (day: number): string => {
+      if (!isCurrentMonthView) return String(day);
+      const relLabel = getRelativeDateLabel(day, month, year);
+      return relLabel || String(day);
+    },
+    [isCurrentMonthView, month, year]
+  );
+
+  // Check if a day is within the "relative label" zone (last 7 days for current month)
+  const isRecentDay = useCallback(
+    (day: number): boolean => {
+      if (!isCurrentMonthView) return false;
+      return getRelativeDateLabel(day, month, year) !== null;
+    },
+    [isCurrentMonthView, month, year]
+  );
 
   if (loading) {
     return (
@@ -255,26 +434,29 @@ function ListView({
   return (
     <Card className="bg-slate-800/50 border-slate-700/50 overflow-hidden">
       <ScrollArea className="w-full">
-        <div className="min-w-[900px]">
+        <div className="min-w-[1000px]">
           {/* Header row */}
           <div className="flex items-center bg-slate-900/80 border-b border-slate-700 text-xs font-medium text-slate-400 sticky top-0 z-10">
-            <div className="w-48 shrink-0 px-4 py-3">Employee</div>
+            <div className="w-52 shrink-0 px-4 py-3">Employee</div>
             <div className="w-28 shrink-0 px-3 py-3">ID</div>
-            <div className="w-32 shrink-0 px-3 py-3">Site</div>
+            <div className="w-36 shrink-0 px-3 py-3">Site</div>
             <div className="flex-1 flex">
-              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+              {displayDays.map((day) => {
                 const isFri = isFriday(year, month, day);
                 const isFuture = isFutureDate(day, month, year);
+                const label = getDayLabel(day);
+                const recent = isRecentDay(day);
                 return (
                   <div
                     key={day}
                     className={cn(
-                      'w-9 shrink-0 text-center py-3',
+                      'w-16 shrink-0 text-center py-3 leading-tight',
                       isFri && 'text-red-400/50',
-                      isFuture && 'opacity-40'
+                      isFuture && 'opacity-40',
+                      recent && !isFuture && 'text-emerald-400 font-semibold'
                     )}
                   >
-                    {day}
+                    <span className={cn(recent && 'text-[10px] block')}>{label}</span>
                   </div>
                 );
               })}
@@ -294,7 +476,7 @@ function ListView({
                   key={emp.id}
                   className="flex items-center hover:bg-slate-700/20 transition-colors"
                 >
-                  <div className="w-48 shrink-0 px-4 py-2.5">
+                  <div className="w-52 shrink-0 px-4 py-2.5">
                     <span className="text-sm text-white font-medium truncate block">
                       {emp.fullName}
                     </span>
@@ -302,27 +484,33 @@ function ListView({
                   <div className="w-28 shrink-0 px-3 py-2.5">
                     <span className="text-xs text-slate-400 font-mono">{emp.employeeId}</span>
                   </div>
-                  <div className="w-32 shrink-0 px-3 py-2.5">
-                    <span className="text-xs text-slate-400 truncate block">
-                      {emp.currentSite || '—'}
-                    </span>
+                  <div className="w-36 shrink-0 px-3 py-2.5">
+                    {emp.currentSite ? (
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 truncate max-w-full block">
+                        {emp.currentSite}
+                      </Badge>
+                    ) : (
+                      <span className="text-xs text-slate-500">&mdash;</span>
+                    )}
                   </div>
                   <div className="flex-1 flex">
-                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
+                    {displayDays.map((day) => {
                       const dateStr = formatDate(day, monthStr, yearStr);
                       const record = attendanceMap.get(`${emp.id}-${dateStr}`);
                       const status = record?.status || 'not_marked';
                       const cfg = STATUS_CONFIG[status];
                       const isFri = isFriday(year, month, day);
                       const isFuture = isFutureDate(day, month, year);
+                      const recent = isRecentDay(day);
 
                       return (
                         <div
                           key={day}
                           className={cn(
-                            'w-9 shrink-0 flex items-center justify-center py-1.5',
+                            'w-16 shrink-0 flex items-center justify-center py-1.5',
                             isFri && 'bg-red-500/5',
-                            isFuture && 'opacity-30'
+                            isFuture && 'opacity-30',
+                            recent && !isFuture && 'bg-emerald-500/5'
                           )}
                         >
                           {!isFuture && !isFri ? (
@@ -361,7 +549,7 @@ function ListView({
                     {totalOT > 0 ? (
                       <span className="text-xs font-medium text-blue-400">{totalOT}h</span>
                     ) : (
-                      <span className="text-xs text-slate-600">—</span>
+                      <span className="text-xs text-slate-600">&mdash;</span>
                     )}
                   </div>
                 </div>
@@ -484,40 +672,44 @@ function CalendarView({
   return (
     <Card className="bg-slate-800/50 border-slate-700/50">
       <CardContent className="p-4 md:p-6">
-        {/* Employee selector */}
+        {/* Searchable Employee selector */}
         <div className="mb-6">
-          <label className="text-sm text-slate-400 mb-2 block font-medium">Select Employee</label>
-          <Select value={selectedEmployeeId} onValueChange={onSelectedEmployeeChange}>
-            <SelectTrigger className="w-full max-w-sm bg-slate-900 border-slate-600 text-white">
-              <SelectValue placeholder="Select employee..." />
-            </SelectTrigger>
-            <SelectContent className="dropdown-upward bg-slate-800 border-slate-600 max-h-64">
-              {employees.map((emp) => (
-                <SelectItem key={emp.id} value={emp.id} className="text-slate-200 focus:bg-slate-700 focus:text-white">
-                  {emp.fullName} ({emp.employeeId})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <SearchableEmployeeSelect
+            employees={employees}
+            selectedEmployeeId={selectedEmployeeId}
+            onSelect={onSelectedEmployeeChange}
+          />
         </div>
 
         {selectedEmployee && (
           <>
-            {/* Summary */}
-            <div className="flex flex-wrap gap-3 mb-6">
-              {STATUS_OPTIONS.map((s) => {
-                const count = Array.from({ length: daysInMonth }, (_, i) => i + 1).filter(
-                  (d) => !isFriday(year, month, d) && !isFutureDate(d, month, year) && getStatusForDay(d) === s
-                ).length;
-                const cfg = STATUS_CONFIG[s];
-                return (
-                  <div key={s} className={cn('px-3 py-1.5 rounded-lg flex items-center gap-2', cfg.color)}>
-                    <span className={cn('h-2 w-2 rounded-full', cfg.dotColor)} />
-                    <span className="text-xs font-medium">{count}</span>
-                    <span className="text-[11px] opacity-80">{cfg.label}</span>
-                  </div>
-                );
-              })}
+            {/* Employee info + Summary */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-white font-medium">{selectedEmployee.fullName}</span>
+                <span className="text-xs text-slate-500">({selectedEmployee.employeeId})</span>
+                {selectedEmployee.currentSite && (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+                    <MapPin className="h-2.5 w-2.5 mr-0.5" />
+                    {selectedEmployee.currentSite}
+                  </Badge>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-2 sm:ml-auto">
+                {STATUS_OPTIONS.map((s) => {
+                  const count = Array.from({ length: daysInMonth }, (_, i) => i + 1).filter(
+                    (d) => !isFriday(year, month, d) && !isFutureDate(d, month, year) && getStatusForDay(d) === s
+                  ).length;
+                  const cfg = STATUS_CONFIG[s];
+                  return (
+                    <div key={s} className={cn('px-2.5 py-1 rounded-lg flex items-center gap-1.5', cfg.color)}>
+                      <span className={cn('h-2 w-2 rounded-full', cfg.dotColor)} />
+                      <span className="text-xs font-medium">{count}</span>
+                      <span className="text-[10px] opacity-80">{cfg.label}</span>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Calendar grid */}
@@ -620,6 +812,139 @@ function CalendarView({
   );
 }
 
+/* ───────── Searchable Site Filter Dropdown ───────── */
+interface SiteFilterProps {
+  sites: SiteOption[];
+  selectedSite: string;
+  onSiteChange: (site: string) => void;
+}
+
+function SiteFilter({ sites, selectedSite, onSiteChange }: SiteFilterProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = search
+    ? sites.filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
+    : sites;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={cn(
+          'flex items-center gap-2 h-9 rounded-lg border px-3 text-sm transition-colors text-left min-w-[180px]',
+          selectedSite
+            ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400'
+            : 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+        )}
+      >
+        <MapPin className="h-4 w-4 shrink-0" />
+        <span className="truncate flex-1">
+          {selectedSite || 'All Sites'}
+        </span>
+        {selectedSite && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => {
+              e.stopPropagation();
+              onSiteChange('');
+            }}
+            className="text-slate-400 hover:text-white shrink-0"
+          >
+            <X className="h-3.5 w-3.5" />
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-800 border border-slate-600 rounded-lg shadow-xl shadow-black/40 overflow-hidden min-w-[240px]">
+          <div className="p-2 border-b border-slate-700">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search sites..."
+                className="w-full h-8 pl-8 pr-3 bg-slate-900 border border-slate-600 rounded-md text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            <button
+              type="button"
+              onClick={() => {
+                onSiteChange('');
+                setOpen(false);
+                setSearch('');
+              }}
+              className={cn(
+                'flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors hover:bg-slate-700/50',
+                !selectedSite ? 'bg-slate-700/70 text-white' : 'text-slate-300'
+              )}
+            >
+              <span className="font-medium">All Sites</span>
+            </button>
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-sm text-slate-500">No sites found</div>
+            ) : (
+              filtered.map((site) => (
+                <button
+                  key={site.id}
+                  type="button"
+                  onClick={() => {
+                    onSiteChange(site.name);
+                    setOpen(false);
+                    setSearch('');
+                  }}
+                  className={cn(
+                    'flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors hover:bg-slate-700/50',
+                    selectedSite === site.name ? 'bg-slate-700/70 text-emerald-400' : 'text-slate-300'
+                  )}
+                >
+                  <MapPin className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  <span className="truncate">{site.name}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ───────── Main Page ───────── */
 export function AttendancePage() {
   const { user } = useAuthStore();
@@ -640,11 +965,18 @@ export function AttendancePage() {
   const pageSize = 20;
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 
+  // Site filter
+  const [sites, setSites] = useState<SiteOption[]>([]);
+  const [selectedSite, setSelectedSite] = useState('');
+  const [loadingSites, setLoadingSites] = useState(true);
+
   const month = parseInt(selectedMonth, 10);
   const year = parseInt(selectedYear, 10);
   const monthStr = selectedMonth;
   const yearStr = selectedYear;
   const daysInMonth = getDaysInMonth(year, month);
+
+  const isCurrentMonthView = month === currentMonth && year === currentYear;
 
   // Build attendance map: key = "employeeId-date"
   const attendanceMap = useMemo(() => {
@@ -666,7 +998,25 @@ export function AttendancePage() {
 
   const totalPages = Math.ceil(totalEmployees / pageSize);
 
-  // Fetch employees with search and pagination
+  // Fetch sites for the site filter dropdown
+  useEffect(() => {
+    const fetchSites = async () => {
+      try {
+        const res = await fetch('/api/sites');
+        const data = await res.json();
+        if (data.success) {
+          setSites((data.data.sites || []).map((s: { id: string; name: string }) => ({ id: s.id, name: s.name })));
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setLoadingSites(false);
+      }
+    };
+    fetchSites();
+  }, []);
+
+  // Fetch employees with search, site filter and pagination
   useEffect(() => {
     let cancelled = false;
     const fetchEmployees = async () => {
@@ -678,6 +1028,7 @@ export function AttendancePage() {
           status: 'active',
         });
         if (searchDebounce) params.set('search', searchDebounce);
+        if (selectedSite) params.set('site', selectedSite);
         const res = await fetch(`/api/employees?${params.toString()}`);
         const data = await res.json();
         if (cancelled) return;
@@ -699,7 +1050,7 @@ export function AttendancePage() {
     };
     fetchEmployees();
     return () => { cancelled = true; };
-  }, [searchDebounce, page]);
+  }, [searchDebounce, page, selectedSite]);
 
   // Fetch attendance
   useEffect(() => {
@@ -721,7 +1072,14 @@ export function AttendancePage() {
       }
     };
     fetchAttendance();
+    return () => { cancelled = true; };
   }, [yearStr, monthStr]);
+
+  // Reset pagination and selected employee when site filter changes
+  useEffect(() => {
+    setPage(1);
+    setSelectedEmployeeId('');
+  }, [selectedSite]);
 
   // Handle status change
   const handleStatusChange = useCallback(
@@ -811,7 +1169,7 @@ export function AttendancePage() {
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
               viewMode === 'list'
-                ? 'bg-blue-500 text-white'
+                ? 'bg-emerald-500 text-white'
                 : 'text-slate-400 hover:text-white'
             )}
           >
@@ -823,7 +1181,7 @@ export function AttendancePage() {
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
               viewMode === 'calendar'
-                ? 'bg-blue-500 text-white'
+                ? 'bg-emerald-500 text-white'
                 : 'text-slate-400 hover:text-white'
             )}
           >
@@ -847,7 +1205,7 @@ export function AttendancePage() {
           </Button>
           <div className="flex items-center gap-2 bg-slate-800 rounded-lg border border-slate-700 px-3 py-1.5 min-w-[220px]">
             <span className="text-sm font-semibold text-white">{monthLabel}</span>
-            <span className="text-slate-500">•</span>
+            <span className="text-slate-500">&bull;</span>
             <span className="text-sm text-slate-300">{yearStr}</span>
           </div>
           <Button
@@ -889,78 +1247,98 @@ export function AttendancePage() {
           </SelectContent>
         </Select>
 
-        {/* Search */}
-        <div className="relative flex-1 max-w-xs">
+        {/* Site Filter */}
+        {!loadingSites && sites.length > 0 && (
+          <SiteFilter
+            sites={sites}
+            selectedSite={selectedSite}
+            onSiteChange={setSelectedSite}
+          />
+        )}
+
+        {/* Search - disabled in calendar view */}
+        <div className={cn('relative flex-1 max-w-xs', viewMode === 'calendar' && 'opacity-40 pointer-events-none')}>
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <Input
             placeholder="Search employees..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 bg-slate-800 border-slate-700 text-sm text-white placeholder:text-slate-500 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+            disabled={viewMode === 'calendar'}
+            className="pl-9 h-9 bg-slate-800 border-slate-700 text-sm text-white placeholder:text-slate-500 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20 disabled:cursor-not-allowed"
           />
+          {viewMode === 'calendar' && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <span className="text-[11px] text-slate-500 bg-slate-900/80 px-2 py-0.5 rounded">
+                Search in employee dropdown
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-400">
-          Showing <span className="text-white font-medium">{employees.length}</span> of{' '}
-          <span className="text-white font-medium">{totalEmployees}</span> employees
-          {searchDebounce && <span> matching &ldquo;<span className="text-emerald-400">{searchDebounce}</span>&rdquo;</span>}
-        </p>
-        {totalPages > 1 && (
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700"
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex items-center gap-1 px-2">
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                let pageNum: number;
-                if (totalPages <= 5) {
-                  pageNum = i + 1;
-                } else if (page <= 3) {
-                  pageNum = i + 1;
-                } else if (page >= totalPages - 2) {
-                  pageNum = totalPages - 4 + i;
-                } else {
-                  pageNum = page - 2 + i;
-                }
-                return (
-                  <Button
-                    key={pageNum}
-                    variant="ghost"
-                    size="sm"
-                    className={cn(
-                      'h-8 w-8 text-sm font-medium',
-                      page === pageNum
-                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
-                    )}
-                    onClick={() => setPage(pageNum)}
-                  >
-                    {pageNum}
-                  </Button>
-                );
-              })}
+      {/* Pagination - only for list view */}
+      {viewMode === 'list' && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-slate-400">
+            Showing <span className="text-white font-medium">{employees.length}</span> of{' '}
+            <span className="text-white font-medium">{totalEmployees}</span> employees
+            {searchDebounce && <span> matching &ldquo;<span className="text-emerald-400">{searchDebounce}</span>&rdquo;</span>}
+            {selectedSite && <span> in <span className="text-emerald-400">{selectedSite}</span></span>}
+          </p>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page <= 1}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <div className="flex items-center gap-1 px-2">
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  let pageNum: number;
+                  if (totalPages <= 5) {
+                    pageNum = i + 1;
+                  } else if (page <= 3) {
+                    pageNum = i + 1;
+                  } else if (page >= totalPages - 2) {
+                    pageNum = totalPages - 4 + i;
+                  } else {
+                    pageNum = page - 2 + i;
+                  }
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        'h-8 w-8 text-sm font-medium',
+                        page === pageNum
+                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                      )}
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700"
-              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       <div className="relative">
@@ -974,6 +1352,7 @@ export function AttendancePage() {
             month={month}
             year={year}
             loading={loadingEmployees || loadingAttendance}
+            isCurrentMonthView={isCurrentMonthView}
             onStatusChange={handleStatusChange}
           />
         ) : (
