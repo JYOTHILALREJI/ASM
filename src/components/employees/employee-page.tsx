@@ -603,22 +603,42 @@ export function EmployeePage() {
     if (!deletingEmployee || !user) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/employees/${deletingEmployee.id}/delete-request`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestedBy: user.id }),
-      });
-      const json = await res.json();
-      if (json.success) {
-        toast({
-          title: 'Delete Request Submitted',
-          description: `${deletingEmployee.fullName} has been marked for deletion. Awaiting admin approval.`,
+      if (user.role === 'super_admin') {
+        // Super Admin: delete immediately
+        const res = await fetch(`/api/employees/${deletingEmployee.id}`, {
+          method: 'DELETE',
         });
-        setDeleteDialogOpen(false);
-        setDeletingEmployee(null);
-        fetchEmployees();
+        const json = await res.json();
+        if (json.success) {
+          toast({
+            title: 'Employee Deleted',
+            description: `${deletingEmployee.fullName} has been permanently removed.`,
+          });
+          setDeleteDialogOpen(false);
+          setDeletingEmployee(null);
+          fetchEmployees();
+        } else {
+          toast({ title: 'Error', description: json.error || 'Failed to delete employee', variant: 'destructive' });
+        }
       } else {
-        toast({ title: 'Error', description: json.error || 'Failed to submit delete request', variant: 'destructive' });
+        // Admin: submit delete request for approval
+        const res = await fetch(`/api/employees/${deletingEmployee.id}/delete-request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ requestedBy: user.id }),
+        });
+        const json = await res.json();
+        if (json.success) {
+          toast({
+            title: 'Delete Request Submitted',
+            description: `${deletingEmployee.fullName} has been marked for deletion. Awaiting admin approval.`,
+          });
+          setDeleteDialogOpen(false);
+          setDeletingEmployee(null);
+          fetchEmployees();
+        } else {
+          toast({ title: 'Error', description: json.error || 'Failed to submit delete request', variant: 'destructive' });
+        }
       }
     } catch {
       toast({ title: 'Error', description: 'Something went wrong', variant: 'destructive' });
@@ -1668,15 +1688,20 @@ export function EmployeePage() {
                 <Trash2 className="h-5 w-5 text-red-400" />
               </div>
               <AlertDialogTitle className="text-white">
-                Request Employee Deletion
+                {user?.role === 'super_admin' ? 'Delete Employee' : 'Request Employee Deletion'}
               </AlertDialogTitle>
             </div>
             <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to request deletion for{' '}
+              Are you sure you want to{' '}
+              {user?.role === 'super_admin' ? 'delete' : 'request deletion for'}{' '}
               <span className="text-white font-medium">{deletingEmployee?.fullName}</span>
               {' '}({deletingEmployee?.employeeId})?
               <br /><br />
-              This will mark the employee as &quot;Pending Deletion&quot;. A super admin will need to approve this request before the employee is permanently removed.
+              {user?.role === 'super_admin' ? (
+                <span>This action cannot be undone. The employee will be permanently removed from the system.</span>
+              ) : (
+                <span>This will mark the employee as &quot;Pending Deletion&quot;. A super admin will need to approve this request before the employee is permanently removed.</span>
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -1694,10 +1719,10 @@ export function EmployeePage() {
               {isDeleting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Submitting...
+                  {user?.role === 'super_admin' ? 'Deleting...' : 'Submitting...'}
                 </>
               ) : (
-                'Request Deletion'
+                user?.role === 'super_admin' ? 'Delete Employee' : 'Request Deletion'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
