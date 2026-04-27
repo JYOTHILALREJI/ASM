@@ -8,6 +8,7 @@ import {
   Clock,
   Building2,
   CalendarDays,
+  CalendarIcon,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,6 +28,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { format } from 'date-fns';
 import {
   BarChart,
   Bar,
@@ -86,6 +91,8 @@ export function DashboardPage() {
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
+  const [selectedDate, setSelectedDate] = useState<Date>(now);
+  const [calendarOpen, setCalendarOpen] = useState(false);
 
   const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -93,6 +100,11 @@ export function DashboardPage() {
 
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [loadingAttendance, setLoadingAttendance] = useState(true);
+
+  // Format today's date with day name
+  const todayDisplay = useMemo(() => {
+    return format(now, 'EEEE, MMMM d, yyyy');
+  }, []);
 
   // Generate year options (current year ± 2)
   const yearOptions = useMemo(() => {
@@ -152,12 +164,26 @@ export function DashboardPage() {
     fetchAttendance(month, year);
   }, [month, year, fetchAttendance]);
 
-  // Compute metrics from attendance data
-  const today = new Date().toISOString().split('T')[0];
-  const todayRecords = attendanceRecords.filter((r) => r.date === today);
-  const presentCount = todayRecords.filter((r) => r.status === 'present').length;
-  const absentCount = todayRecords.filter((r) => r.status === 'absent').length;
-  const overtimeCount = todayRecords.filter((r) => r.status === 'overtime').length;
+  // Handle date selection - auto-update month/year to match
+  const handleDateSelect = useCallback((date: Date | undefined) => {
+    if (date) {
+      setSelectedDate(date);
+      const newMonth = String(date.getMonth() + 1);
+      const newYear = String(date.getFullYear());
+      if (newMonth !== month || newYear !== year) {
+        setMonth(newMonth);
+        setYear(newYear);
+      }
+      setCalendarOpen(false);
+    }
+  }, [month, year]);
+
+  // Compute metrics from attendance data based on selected date
+  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const selectedDateRecords = attendanceRecords.filter((r) => r.date === selectedDateStr);
+  const presentCount = selectedDateRecords.filter((r) => r.status === 'present').length;
+  const absentCount = selectedDateRecords.filter((r) => r.status === 'absent').length;
+  const overtimeCount = selectedDateRecords.filter((r) => r.status === 'overtime').length;
 
   // Compute monthly chart data (last 6 months)
   const monthlyChartData: MonthlyChartData[] = useMemo(() => {
@@ -218,6 +244,9 @@ export function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [employees]);
 
+  const selectedDateDisplay = format(selectedDate, 'MMM d, yyyy');
+  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
+
   const metrics = [
     {
       title: 'Total Employees',
@@ -225,41 +254,74 @@ export function DashboardPage() {
       icon: Users,
       color: 'text-blue-400',
       bgColor: 'bg-blue-500/10',
+      subtitle: null,
     },
     {
-      title: 'Present Today',
+      title: isToday ? 'Present Today' : 'Present',
       value: loadingAttendance ? null : presentCount,
       icon: CheckCircle,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10',
+      subtitle: isToday ? null : selectedDateDisplay,
     },
     {
-      title: 'Absent Today',
+      title: isToday ? 'Absent Today' : 'Absent',
       value: loadingAttendance ? null : absentCount,
       icon: XCircle,
       color: 'text-red-400',
       bgColor: 'bg-red-500/10',
+      subtitle: isToday ? null : selectedDateDisplay,
     },
     {
-      title: 'Overtime Today',
+      title: isToday ? 'Overtime Today' : 'Overtime',
       value: loadingAttendance ? null : overtimeCount,
       icon: Clock,
       color: 'text-cyan-400',
       bgColor: 'bg-cyan-500/10',
+      subtitle: isToday ? null : selectedDateDisplay,
     },
   ];
 
   return (
     <div className="flex flex-col gap-6">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+          <div className="flex items-center gap-2 mt-1">
+            <CalendarDays className="h-4 w-4 text-emerald-400" />
+            <p className="text-emerald-400 font-medium text-sm">{todayDisplay}</p>
+          </div>
           <p className="text-slate-400 mt-1">
             Overview of your workforce metrics and attendance.
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Date Picker for Attendance Cards */}
+          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className="w-[200px] justify-start text-left font-normal bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white"
+              >
+                <CalendarIcon className="h-4 w-4 mr-2 text-slate-400" />
+                {format(selectedDate, 'dd MMM yyyy')}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0 bg-slate-800 border-slate-700" align="end">
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                className="bg-slate-800 text-slate-200"
+                classNames={{
+                  day: 'data-[selected=true]:bg-emerald-600 data-[selected=true]:text-white hover:bg-slate-700',
+                  today: 'bg-slate-700 text-white rounded-md data-[selected=true]:rounded-none',
+                  outside: 'text-slate-500 aria-selected:text-slate-500',
+                }}
+              />
+            </PopoverContent>
+          </Popover>
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className="w-[140px] bg-slate-800 border-slate-700 text-slate-200">
               <CalendarDays className="h-4 w-4 mr-2 text-slate-400" />
@@ -316,7 +378,7 @@ export function DashboardPage() {
                   </div>
                 )}
                 <p className="text-xs text-slate-500 mt-1">
-                  {MONTHS.find((m) => m.value === month)?.label} {year}
+                  {metric.subtitle || `${MONTHS.find((m) => m.value === month)?.label} ${year}`}
                 </p>
               </CardContent>
             </Card>
