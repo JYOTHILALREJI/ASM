@@ -46,11 +46,11 @@ export function LoginPage() {
         return;
       }
 
-      setUser(data.user);
+      setUser(data.data.user);
       setCurrentView('dashboard');
       toast({
         title: 'Welcome back!',
-        description: `Signed in as ${data.user.name}`,
+        description: `Signed in as ${data.data.user.name}`,
       });
     } catch {
       setError('Network error. Please check your connection and try again.');

@@ -149,3 +149,22 @@ Stage Summary:
 - 18 API routes, 8 UI pages, full auth system
 - Dark theme, responsive design, accessibility
 - All features working: Dashboard, Employees, Attendance, Notifications, Admin Management
+
+---
+Task ID: Bugfix-1
+Agent: Main Coordinator
+Task: Fix login/signup not persisting user session
+
+Work Log:
+- Identified bug: login-page.tsx and signup-page.tsx accessed `data.user` instead of `data.data.user`
+- API responses are wrapped as `{ success: true, data: { user: {...} } }`, but client code was reading from wrong level
+- This caused `setUser(undefined)` to be called after successful login, clearing localStorage and showing login page again
+- Fixed login-page.tsx: `data.user` → `data.data.user`
+- Fixed signup-page.tsx: `data.user` → `data.data.user`
+- Verified all other components (dashboard, employees, attendance, notifications, admins) use correct `data.data.xxx` pattern
+- ESLint passes, dev server confirms working login → dashboard flow
+
+Stage Summary:
+- Login/signup now correctly extracts user data from API response
+- User session persists in localStorage after login
+- Dashboard and all features load correctly after authentication

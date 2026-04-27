@@ -69,11 +69,11 @@ export function SignupPage() {
         return;
       }
 
-      setUser(data.user);
+      setUser(data.data.user);
       setCurrentView('dashboard');
       toast({
         title: 'System Initialized!',
-        description: `Welcome, ${data.user.name}. Your super admin account has been created.`,
+        description: `Welcome, ${data.data.user.name}. Your super admin account has been created.`,
       });
     } catch {
       setError('Network error. Please check your connection and try again.');
