@@ -125,7 +125,7 @@ export async function POST(request: NextRequest) {
           data: {
             userId: admin.id,
             title: 'New Delete Request',
-            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).${reason ? ` Reason: ${reason}` : ''}`,
+            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).`,
             type: 'request',
           },
         });

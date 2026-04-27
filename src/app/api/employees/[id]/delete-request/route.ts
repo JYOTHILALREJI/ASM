@@ -73,7 +73,7 @@ export async function POST(
           data: {
             userId: admin.id,
             title: 'Delete Request Pending',
-            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).${reason ? ` Reason: ${reason}` : ''} Please review.`,
+            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}). Please review.`,
             type: 'request',
           },
         });
