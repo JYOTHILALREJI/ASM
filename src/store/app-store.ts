@@ -1,0 +1,17 @@
+import { create } from 'zustand';
+
+export type AppView = 'dashboard' | 'employees' | 'attendance' | 'notifications' | 'admins';
+
+interface AppState {
+  currentView: AppView;
+  sidebarOpen: boolean;
+  setCurrentView: (view: AppView) => void;
+  setSidebarOpen: (open: boolean) => void;
+}
+
+export const useAppStore = create<AppState>((set) => ({
+  currentView: 'dashboard',
+  sidebarOpen: true,
+  setSidebarOpen: (sidebarOpen) => set({ sidebarOpen }),
+  setCurrentView: (currentView) => set({ currentView }),
+}));

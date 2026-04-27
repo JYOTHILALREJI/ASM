@@ -1,0 +1,155 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { Menu, Search, Bell, LogOut, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuthStore } from '@/store/auth-store';
+import { useAppStore } from '@/store/app-store';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+
+const viewTitles: Record<string, string> = {
+  dashboard: 'Dashboard',
+  employees: 'Employee Management',
+  attendance: 'Attendance Tracking',
+  notifications: 'Notifications',
+  admins: 'Admin Management',
+};
+
+export function AppHeader() {
+  const { currentView, setSidebarOpen } = useAppStore();
+  const { user, logout } = useAuthStore();
+  const isMobile = useIsMobile();
+
+  const title = viewTitles[currentView] || 'Dashboard';
+
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCount = async () => {
+      try {
+        const res = await fetch('/api/notifications?limit=1');
+        const data = await res.json();
+        if (data.success) {
+          setUnreadCount(data.data.unreadCount || 0);
+        }
+      } catch {
+        // silent
+      }
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <header className="sticky top-0 z-30 flex items-center justify-between gap-4 border-b border-slate-700/50 bg-slate-900/80 backdrop-blur-sm px-4 md:px-6 py-3">
+      {/* Left Section */}
+      <div className="flex items-center gap-3">
+        {isMobile && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-slate-400 hover:text-white"
+            onClick={() => setSidebarOpen(true)}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
+        )}
+        <h1 className="text-lg font-semibold text-white">{title}</h1>
+      </div>
+
+      {/* Center - Search */}
+      <div className="hidden md:flex flex-1 max-w-md mx-4">
+        <div className="relative w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search..."
+            className="pl-9 bg-slate-800/50 border-slate-700/50 text-slate-300 placeholder:text-slate-500 focus-visible:border-blue-500/50 focus-visible:ring-blue-500/20 h-9"
+          />
+        </div>
+      </div>
+
+      {/* Right Section */}
+      <div className="flex items-center gap-2">
+        {/* Notification Bell */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative text-slate-400 hover:text-white"
+          onClick={() => useAppStore.getState().setCurrentView('notifications')}
+        >
+          <Bell className="h-5 w-5" />
+          {unreadCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-blue-500 text-[10px] font-bold text-white">
+              {unreadCount}
+            </span>
+          )}
+        </Button>
+
+        {/* User Dropdown */}
+        {user && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2 px-2 md:px-3 text-slate-300 hover:text-white hover:bg-slate-800"
+              >
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-semibold text-xs">
+                  {user.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .toUpperCase()}
+                </div>
+                <span className="hidden md:inline text-sm font-medium truncate max-w-[120px]">
+                  {user.name}
+                </span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56 bg-slate-800 border-slate-700"
+            >
+              <DropdownMenuLabel className="font-normal">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm font-medium text-white">{user.name}</p>
+                  <p className="text-xs text-slate-400">{user.email}</p>
+                  <Badge
+                    variant="secondary"
+                    className="mt-1 w-fit text-[10px] bg-slate-700 text-slate-300"
+                  >
+                    {user.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                  </Badge>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator className="bg-slate-700" />
+              <DropdownMenuItem className="text-slate-300 focus:bg-slate-700 focus:text-white cursor-pointer">
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuSeparator className="bg-slate-700" />
+              <DropdownMenuItem
+                className="text-red-400 focus:bg-red-500/10 focus:text-red-400 cursor-pointer"
+                onClick={logout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </header>
+  );
+}

@@ -1,0 +1,529 @@
+'use client';
+
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import {
+  Users,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Building2,
+  CalendarDays,
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from 'recharts';
+
+const MONTHS = [
+  { value: '1', label: 'January' },
+  { value: '2', label: 'February' },
+  { value: '3', label: 'March' },
+  { value: '4', label: 'April' },
+  { value: '5', label: 'May' },
+  { value: '6', label: 'June' },
+  { value: '7', label: 'July' },
+  { value: '8', label: 'August' },
+  { value: '9', label: 'September' },
+  { value: '10', label: 'October' },
+  { value: '11', label: 'November' },
+  { value: '12', label: 'December' },
+];
+
+const PIE_COLORS = ['#22c55e', '#f59e0b', '#64748b'];
+
+interface AttendanceRecord {
+  status: string;
+  date: string;
+}
+
+interface EmployeeRecord {
+  id: string;
+  status: string;
+  currentSite: string | null;
+}
+
+interface SiteGroup {
+  name: string;
+  count: number;
+  statuses: Record<string, number>;
+}
+
+interface MonthlyChartData {
+  name: string;
+  present: number;
+  absent: number;
+  overtime: number;
+}
+
+export function DashboardPage() {
+  const now = new Date();
+  const [month, setMonth] = useState(String(now.getMonth() + 1));
+  const [year, setYear] = useState(String(now.getFullYear()));
+
+  const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+
+  const [loadingEmployees, setLoadingEmployees] = useState(true);
+  const [loadingAttendance, setLoadingAttendance] = useState(true);
+
+  // Generate year options (current year ± 2)
+  const yearOptions = useMemo(() => {
+    const currentYear = now.getFullYear();
+    return [
+      String(currentYear - 2),
+      String(currentYear - 1),
+      String(currentYear),
+      String(currentYear + 1),
+    ];
+  }, []);
+
+  const monthParam = `${year}-${month.padStart(2, '0')}`;
+
+  // Fetch total employees
+  const fetchEmployees = useCallback(async () => {
+    try {
+      setLoadingEmployees(true);
+      const res = await fetch('/api/employees?limit=1000');
+      const json = await res.json();
+      if (json.success) {
+        setTotalEmployees(json.data.total);
+        setEmployees(json.data.employees || []);
+      }
+    } catch {
+      setTotalEmployees(null);
+      setEmployees([]);
+    } finally {
+      setLoadingEmployees(false);
+    }
+  }, []);
+
+  // Fetch attendance for current month/year
+  const fetchAttendance = useCallback(async (m: string, y: string) => {
+    try {
+      setLoadingAttendance(true);
+      const param = `${y}-${m.padStart(2, '0')}`;
+      const res = await fetch(`/api/attendance?month=${param}&year=${y}`);
+      const json = await res.json();
+      if (json.success) {
+        setAttendanceRecords(json.data.records || []);
+      } else {
+        setAttendanceRecords([]);
+      }
+    } catch {
+      setAttendanceRecords([]);
+    } finally {
+      setLoadingAttendance(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, [fetchEmployees]);
+
+  useEffect(() => {
+    fetchAttendance(month, year);
+  }, [month, year, fetchAttendance]);
+
+  // Compute metrics from attendance data
+  const today = new Date().toISOString().split('T')[0];
+  const todayRecords = attendanceRecords.filter((r) => r.date === today);
+  const presentCount = todayRecords.filter((r) => r.status === 'present').length;
+  const absentCount = todayRecords.filter((r) => r.status === 'absent').length;
+  const overtimeCount = todayRecords.filter((r) => r.status === 'overtime').length;
+
+  // Compute monthly chart data (last 6 months)
+  const monthlyChartData: MonthlyChartData[] = useMemo(() => {
+    const data: MonthlyChartData[] = [];
+    const currentYearNum = parseInt(year, 10);
+    const currentMonthNum = parseInt(month, 10);
+
+    // We use the attendance records we already have for the selected month,
+    // but for other months we don't have data — show what we have
+    // For simplicity, generate the 6 months ending at the selected month
+    for (let i = 5; i >= 0; i--) {
+      let m = currentMonthNum - i;
+      let y = currentYearNum;
+      while (m <= 0) {
+        m += 12;
+        y -= 1;
+      }
+      const monthStr = `${y}-${String(m).padStart(2, '0')}`;
+      const monthLabel = MONTHS[m - 1]?.label.slice(0, 3) || `M${m}`;
+
+      const monthRecords = attendanceRecords.filter((r) => r.date.startsWith(monthStr));
+      data.push({
+        name: `${monthLabel} ${y}`,
+        present: monthRecords.filter((r) => r.status === 'present').length,
+        absent: monthRecords.filter((r) => r.status === 'absent').length,
+        overtime: monthRecords.filter((r) => r.status === 'overtime').length,
+      });
+    }
+    return data;
+  }, [attendanceRecords, month, year]);
+
+  // Compute pie chart data (status distribution of employees)
+  const pieData = useMemo(() => {
+    const active = employees.filter((e) => e.status === 'active').length;
+    const pending = employees.filter((e) => e.status === 'pending_deletion').length;
+    const idle = employees.filter((e) => e.status === 'idle').length;
+    const arr = [];
+    if (active > 0) arr.push({ name: 'Active', value: active });
+    if (pending > 0) arr.push({ name: 'Pending Deletion', value: pending });
+    if (idle > 0) arr.push({ name: 'Idle', value: idle });
+    if (arr.length === 0) arr.push({ name: 'No Data', value: 1 });
+    return arr;
+  }, [employees]);
+
+  // Compute site-wise breakdown
+  const siteGroups: SiteGroup[] = useMemo(() => {
+    const map = new Map<string, { count: number; statuses: Record<string, number> }>();
+    employees.forEach((emp) => {
+      const site = emp.currentSite || 'Unassigned';
+      const existing = map.get(site) || { count: 0, statuses: {} };
+      existing.count++;
+      const st = emp.status || 'active';
+      existing.statuses[st] = (existing.statuses[st] || 0) + 1;
+      map.set(site, existing);
+    });
+    return Array.from(map.entries())
+      .map(([name, data]) => ({ name, ...data }))
+      .sort((a, b) => b.count - a.count);
+  }, [employees]);
+
+  const metrics = [
+    {
+      title: 'Total Employees',
+      value: loadingEmployees ? null : (totalEmployees ?? 0),
+      icon: Users,
+      color: 'text-blue-400',
+      bgColor: 'bg-blue-500/10',
+    },
+    {
+      title: 'Present Today',
+      value: loadingAttendance ? null : presentCount,
+      icon: CheckCircle,
+      color: 'text-green-400',
+      bgColor: 'bg-green-500/10',
+    },
+    {
+      title: 'Absent Today',
+      value: loadingAttendance ? null : absentCount,
+      icon: XCircle,
+      color: 'text-red-400',
+      bgColor: 'bg-red-500/10',
+    },
+    {
+      title: 'Overtime Today',
+      value: loadingAttendance ? null : overtimeCount,
+      icon: Clock,
+      color: 'text-cyan-400',
+      bgColor: 'bg-cyan-500/10',
+    },
+  ];
+
+  return (
+    <div className="flex flex-col gap-6">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-white">Dashboard</h2>
+          <p className="text-slate-400 mt-1">
+            Overview of your workforce metrics and attendance.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={month} onValueChange={setMonth}>
+            <SelectTrigger className="w-[140px] bg-slate-800 border-slate-700 text-slate-200">
+              <CalendarDays className="h-4 w-4 mr-2 text-slate-400" />
+              <SelectValue placeholder="Month" />
+            </SelectTrigger>
+            <SelectContent className="dropdown-upward bg-slate-800 border-slate-700">
+              {MONTHS.map((m) => (
+                <SelectItem key={m.value} value={m.value} className="text-slate-200 focus:bg-slate-700 focus:text-white">
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={year} onValueChange={setYear}>
+            <SelectTrigger className="w-[110px] bg-slate-800 border-slate-700 text-slate-200">
+              <SelectValue placeholder="Year" />
+            </SelectTrigger>
+            <SelectContent className="dropdown-upward bg-slate-800 border-slate-700">
+              {yearOptions.map((y) => (
+                <SelectItem key={y} value={y} className="text-slate-200 focus:bg-slate-700 focus:text-white">
+                  {y}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {metrics.map((metric) => {
+          const Icon = metric.icon;
+          return (
+            <Card
+              key={metric.title}
+              className="bg-slate-800/50 border-slate-700/50 hover:border-slate-600/50 transition-colors py-4"
+            >
+              <CardHeader className="flex flex-row items-center justify-between pb-2 px-4">
+                <CardTitle className="text-sm font-medium text-slate-400">
+                  {metric.title}
+                </CardTitle>
+                <div
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg ${metric.bgColor}`}
+                >
+                  <Icon className={`h-4 w-4 ${metric.color}`} />
+                </div>
+              </CardHeader>
+              <CardContent className="px-4 pt-0">
+                {metric.value === null ? (
+                  <Skeleton className="h-8 w-16 bg-slate-700" />
+                ) : (
+                  <div className="text-2xl font-bold text-white">
+                    {metric.value.toLocaleString()}
+                  </div>
+                )}
+                <p className="text-xs text-slate-500 mt-1">
+                  {MONTHS.find((m) => m.value === month)?.label} {year}
+                </p>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Charts Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Monthly Attendance Bar Chart */}
+        <Card className="bg-slate-800/50 border-slate-700/50 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base text-white">
+              Monthly Attendance
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            {loadingAttendance ? (
+              <div className="flex flex-col items-center justify-center" style={{ height: 300 }}>
+                <Skeleton className="h-full w-full bg-slate-700 rounded-lg" style={{ height: 300 }} />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlyChartData} barGap={4} barCategoryGap="20%">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                    axisLine={{ stroke: '#334155' }}
+                    tickLine={{ stroke: '#334155' }}
+                  />
+                  <YAxis
+                    tick={{ fill: '#94a3b8', fontSize: 12 }}
+                    axisLine={{ stroke: '#334155' }}
+                    tickLine={{ stroke: '#334155' }}
+                    allowDecimals={false}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                    }}
+                    itemStyle={{ color: '#e2e8f0' }}
+                    labelStyle={{ color: '#94a3b8', marginBottom: 4 }}
+                    cursor={{ fill: 'rgba(51, 65, 85, 0.3)' }}
+                  />
+                  <Legend
+                    wrapperStyle={{ color: '#94a3b8', fontSize: 12 }}
+                    iconType="circle"
+                  />
+                  <Bar dataKey="present" name="Present" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="absent" name="Absent" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="overtime" name="Overtime" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Status Distribution Pie Chart */}
+        <Card className="bg-slate-800/50 border-slate-700/50 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base text-white">
+              Employee Status Distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            {loadingEmployees ? (
+              <div className="flex items-center justify-center" style={{ height: 300 }}>
+                <Skeleton className="h-full w-full bg-slate-700 rounded-lg" style={{ height: 300 }} />
+              </div>
+            ) : employees.length === 0 ? (
+              <div className="flex flex-col items-center justify-center text-center" style={{ height: 300 }}>
+                <Building2 className="h-8 w-8 text-slate-600 mb-2" />
+                <p className="text-sm text-slate-500">No employee data available</p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={55}
+                    outerRadius={90}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, percent }: { name: string; percent: number }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                    labelLine={{ stroke: '#64748b' }}
+                  >
+                    {pieData.map((_entry, index) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Legend
+                    wrapperStyle={{ color: '#94a3b8', fontSize: 12 }}
+                    iconType="circle"
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '8px',
+                      color: '#e2e8f0',
+                    }}
+                    itemStyle={{ color: '#e2e8f0' }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Site-wise Breakdown Table */}
+      <Card className="bg-slate-800/50 border-slate-700/50 py-4">
+        <CardHeader className="px-4">
+          <CardTitle className="text-base text-white flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-slate-400" />
+            Site-wise Employee Breakdown
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4">
+          {loadingEmployees ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-12 w-full bg-slate-700 rounded-lg" />
+              ))}
+            </div>
+          ) : siteGroups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Building2 className="h-8 w-8 text-slate-600 mb-2" />
+              <p className="text-sm text-slate-500">No site data available</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto max-h-96 overflow-y-auto rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-700 hover:bg-transparent">
+                    <TableHead className="text-slate-400 font-semibold">Site Name</TableHead>
+                    <TableHead className="text-slate-400 font-semibold text-center">Employee Count</TableHead>
+                    <TableHead className="text-slate-400 font-semibold text-center">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {siteGroups.map((site) => {
+                    const statusEntries = Object.entries(site.statuses);
+                    const hasOnlyActive = statusEntries.length === 1 && statusEntries[0][0] === 'active';
+                    return (
+                      <TableRow key={site.name} className="border-slate-700/50 hover:bg-slate-700/30">
+                        <TableCell className="text-slate-200 font-medium">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-slate-500" />
+                            {site.name}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-slate-200 text-center font-semibold">
+                          {site.count}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {hasOnlyActive ? (
+                            <Badge className="bg-green-500/10 text-green-400 border-green-500/20 hover:bg-green-500/20">
+                              Active
+                            </Badge>
+                          ) : (
+                            <div className="flex flex-wrap gap-1 justify-center">
+                              {statusEntries.map(([status, count]) => {
+                                const colorMap: Record<string, string> = {
+                                  active: 'bg-green-500/10 text-green-400 border-green-500/20',
+                                  pending_deletion: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+                                  idle: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+                                  deleted: 'bg-red-500/10 text-red-400 border-red-500/20',
+                                };
+                                const labelMap: Record<string, string> = {
+                                  active: 'Active',
+                                  pending_deletion: 'Pending',
+                                  idle: 'Idle',
+                                  deleted: 'Deleted',
+                                };
+                                return (
+                                  <Badge
+                                    key={status}
+                                    className={`${colorMap[status] || colorMap.active} hover:opacity-80 text-xs`}
+                                  >
+                                    {labelMap[status] || status}: {count}
+                                  </Badge>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
