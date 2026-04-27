@@ -168,3 +168,29 @@ Stage Summary:
 - Login/signup now correctly extracts user data from API response
 - User session persists in localStorage after login
 - Dashboard and all features load correctly after authentication
+
+---
+Task ID: Feature-1
+Agent: Main Coordinator
+Task: Add employee photo upload to Add/Edit dialog
+
+Work Log:
+- Added `compressImage()` helper using Canvas API (max 300px width, JPEG 0.8 quality)
+- Added `formPhoto` state and `isProcessingImage` loading state
+- Added `handlePhotoUpload()` with file type validation (JPEG/PNG/WebP) and 10MB size limit
+- Added `handlePhotoRemove()` to clear photo
+- Added `fileInputRef` for hidden file input
+- Added photo upload UI at top of Personal tab: 96x96px preview with drag-and-drop zone
+- Photo preview shows remove button (×) on hover
+- "Choose Photo" / "Change Photo" button with processing spinner
+- Updated `openAddDialog` to reset `formPhoto` to null
+- Updated `openEditDialog` to load existing `employee.photo` into `formPhoto`
+- Updated `handleSubmit` to include `photo: formPhoto` in API payload
+- Backend already supported `photo` field in create/update routes (no changes needed)
+
+Stage Summary:
+- Employees can now have photos uploaded during creation or editing
+- Images are compressed client-side before storing as base64 in SQLite
+- Drag-and-drop and click-to-upload both supported
+- Photo displays in employee list (via EmployeeAvatar), details dialog, and attendance page
+- ESLint passes with 0 errors

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Users,
   Search,
@@ -31,6 +31,9 @@ import {
   FileText,
   Shield,
   Clock,
+  Camera,
+  Upload,
+  ImagePlus,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -244,6 +247,36 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
 
 // ─── Common Nationalities ────────────────────────────────────────────────
 
+// ─── Image compression helper ───────────────────────────────────────
+
+function compressImage(file: File, maxWidth = 300, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let { width, height } = img;
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('Canvas not supported')); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
 const NATIONALITIES = [
   'Saudi Arabian', 'Indian', 'Pakistani', 'Bangladeshi', 'Filipino',
   'Egyptian', 'Sudanese', 'Yemeni', 'Syrian', 'Jordanian',
@@ -300,9 +333,11 @@ export function EmployeePage() {
     idStatus: '',
     currentSite: '',
   });
+  const [formPhoto, setFormPhoto] = useState<string | null>(null);
   const [showNewSiteInput, setShowNewSiteInput] = useState(false);
   const [newSiteName, setNewSiteName] = useState('');
   const [isCreatingSite, setIsCreatingSite] = useState(false);
+  const [isProcessingImage, setIsProcessingImage] = useState(false);
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -389,6 +424,7 @@ export function EmployeePage() {
   const openAddDialog = () => {
     setFormMode('add');
     setEditingEmployee(null);
+    setFormPhoto(null);
     setFormData({
       fullName: '',
       employeeId: generateAutoId(),
@@ -416,6 +452,7 @@ export function EmployeePage() {
   const openEditDialog = (employee: Employee) => {
     setFormMode('edit');
     setEditingEmployee(employee);
+    setFormPhoto(employee.photo || null);
     setFormData({
       fullName: employee.fullName || '',
       employeeId: employee.employeeId || '',
@@ -464,6 +501,32 @@ export function EmployeePage() {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handlePhotoUpload = async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      toast({ title: 'Invalid File', description: 'Please select an image file (JPEG, PNG, WebP).', variant: 'destructive' });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: 'File Too Large', description: 'Please select an image under 10 MB.', variant: 'destructive' });
+      return;
+    }
+    setIsProcessingImage(true);
+    try {
+      const compressed = await compressImage(file, 300, 0.8);
+      setFormPhoto(compressed);
+    } catch {
+      toast({ title: 'Upload Error', description: 'Failed to process the image. Please try another.', variant: 'destructive' });
+    } finally {
+      setIsProcessingImage(false);
+    }
+  };
+
+  const handlePhotoRemove = () => {
+    setFormPhoto(null);
+  };
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const handleCreateSite = async () => {
     if (!newSiteName.trim()) return;
     setIsCreatingSite(true);
@@ -497,7 +560,7 @@ export function EmployeePage() {
     }
     setIsSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { ...formData };
+      const payload: Record<string, unknown> = { ...formData, photo: formPhoto };
       // Clear empty strings
       Object.keys(payload).forEach((key) => {
         if (payload[key] === '') payload[key] = null;
@@ -941,6 +1004,82 @@ export function EmployeePage() {
             <ScrollArea className="max-h-[50vh] mt-4 pr-2">
               {/* Personal Details Tab */}
               <TabsContent value="personal" className="space-y-4 pb-4">
+                {/* Photo Upload */}
+                <div className="flex flex-col items-center gap-3 sm:col-span-2">
+                  <Label className="text-slate-300 text-sm self-start">Employee Photo</Label>
+                  <div className="flex items-center gap-4 w-full">
+                    {formPhoto ? (
+                      <div className="relative group">
+                        <div className="h-24 w-24 rounded-xl overflow-hidden border-2 border-slate-600 bg-slate-900 flex items-center justify-center">
+                          <img src={formPhoto} alt="Employee photo" className="h-full w-full object-cover" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handlePhotoRemove}
+                          className="absolute -top-2 -right-2 h-6 w-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ) : (
+                      <div
+                        onClick={() => fileInputRef.current?.click()}
+                        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          const file = e.dataTransfer.files[0];
+                          if (file) handlePhotoUpload(file);
+                        }}
+                        className="h-24 w-24 rounded-xl border-2 border-dashed border-slate-600 bg-slate-900/50 flex flex-col items-center justify-center cursor-pointer hover:border-blue-500/50 hover:bg-slate-800/50 transition-colors gap-1"
+                      >
+                        {isProcessingImage ? (
+                          <Loader2 className="h-6 w-6 text-blue-400 animate-spin" />
+                        ) : (
+                          <>
+                            <Camera className="h-6 w-6 text-slate-500" />
+                            <span className="text-[10px] text-slate-500">Upload</span>
+                          </>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handlePhotoUpload(file);
+                          e.target.value = '';
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={isProcessingImage}
+                      >
+                        {isProcessingImage ? (
+                          <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Processing...</>
+                        ) : formPhoto ? (
+                          <><ImagePlus className="h-3.5 w-3.5 mr-1.5" /> Change Photo</>
+                        ) : (
+                          <><Upload className="h-3.5 w-3.5 mr-1.5" /> Choose Photo</>
+                        )}
+                      </Button>
+                      <p className="text-xs text-slate-500 mt-1.5">
+                        {formPhoto ? 'Photo added. Click × to remove.' : 'JPEG, PNG or WebP. Max 10 MB.'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <Separator className="bg-slate-700/50" />
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2 sm:col-span-2">
                     <Label className="text-slate-300 text-sm">
