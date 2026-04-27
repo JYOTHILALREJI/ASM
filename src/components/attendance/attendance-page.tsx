@@ -659,7 +659,9 @@ export function AttendancePage() {
         const data = await res.json();
         if (cancelled) return;
         if (data.success) {
-          const emps: Employee[] = data.data.employees || [];
+          const emps: Employee[] = (data.data.employees || []).filter(
+            (e: Employee) => e.currentSite !== 'Idle'
+          );
           setEmployees(emps);
           if (!selectedEmployeeId && emps.length > 0) {
             setSelectedEmployeeId(emps[0].id);
