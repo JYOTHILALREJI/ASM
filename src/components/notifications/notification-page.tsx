@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   Bell,
   FileText,
@@ -15,6 +15,10 @@ import {
   CheckCircle2,
   XCircle,
   HourglassIcon,
+  Plus,
+  Download,
+  Search as SearchIcon,
+  Loader2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,6 +32,30 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/store/auth-store';
@@ -88,6 +116,16 @@ interface Notification {
   updatedAt: string;
 }
 
+interface EmployeeOption {
+  id: string;
+  fullName: string;
+  employeeId: string;
+  phone: string | null;
+  position: string | null;
+  nationality: string | null;
+  currentSite: string | null;
+}
+
 /* ───────── helpers ───────── */
 const MONTHS = [
   { value: '01', label: 'Jan' },
@@ -117,6 +155,15 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function formatFormalDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat('en-SA', {
     style: 'currency',
@@ -124,6 +171,128 @@ function formatCurrency(amount: number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(amount);
+}
+
+function generateNoticeHtml(opts: {
+  type: 'warning' | 'fine';
+  employeeName: string;
+  employeeId: string;
+  reason: string;
+  date: string;
+  amount?: number;
+  noticeNumber?: string;
+}): string {
+  const isWarning = opts.type === 'warning';
+  const title = isWarning ? 'NOTICE OF WARNING' : 'NOTICE OF FINE';
+  const formalDate = formatFormalDate(opts.date);
+  const refNumber = opts.noticeNumber || `ASM-${opts.type.toUpperCase()}-${opts.employeeId}-${new Date(opts.date).getTime().toString(36).toUpperCase()}`;
+
+  let bodyParagraph = '';
+  if (isWarning) {
+    bodyParagraph = `This notice is to formally advise you that a warning has been issued against your employee record with Arabian Shield Manpower. The reason for this warning is as follows: <strong>${opts.reason}</strong>.<br/><br/>This warning has been documented in your personnel file and will be taken into consideration in any future evaluations or disciplinary proceedings. We urge you to take this matter seriously and to ensure that such behavior or incident is not repeated.<br/><br/>Please be advised that continued violations of company policies and procedures may result in further disciplinary action, up to and including termination of employment, in accordance with the labor laws of the Kingdom of Saudi Arabia.`;
+  } else {
+    bodyParagraph = `This notice is to formally advise you that a financial penalty has been imposed against your employee record with Arabian Shield Manpower. The reason for this fine is as follows: <strong>${opts.reason}</strong>.<br/><br/>The total amount of <strong>${formatCurrency(opts.amount || 0)} SAR</strong> is to be deducted from your upcoming salary in accordance with the company's disciplinary policy and the labor regulations of the Kingdom of Saudi Arabia. This deduction will be reflected in your next payroll cycle.<br/><br/>This fine has been documented in your personnel file and will be taken into consideration in any future evaluations or disciplinary proceedings. We urge you to take this matter seriously and to ensure full compliance with all company policies and procedures going forward.`;
+  }
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${title} - ${opts.employeeName}</title>
+</head>
+<body style="margin: 0; padding: 40px 20px; background-color: #f5f5f5; font-family: Georgia, 'Times New Roman', Times, serif; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact;">
+  <div style="max-width: 800px; margin: 0 auto; background: #fff; padding: 60px 60px; border: 1px solid #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+
+    <!-- Company Header -->
+    <div style="text-align: center; border-bottom: 3px double #1a365d; padding-bottom: 24px; margin-bottom: 32px;">
+      <h1 style="margin: 0 0 4px 0; font-size: 26px; font-weight: bold; color: #1a365d; letter-spacing: 2px;">ARABIAN SHIELD MANPOWER</h1>
+      <p style="margin: 0 0 4px 0; font-size: 13px; color: #4a5568;">Kingdom of Saudi Arabia</p>
+      <p style="margin: 0 0 4px 0; font-size: 12px; color: #718096;">Manpower Supply &amp; Human Resources Services</p>
+      <p style="margin: 0; font-size: 11px; color: #a0aec0;">Contact: info@arabianshield.com.sa | +966 XX XXX XXXX</p>
+    </div>
+
+    <!-- Notice Title -->
+    <div style="text-align: center; margin-bottom: 32px;">
+      <h2 style="margin: 0; font-size: 20px; font-weight: bold; color: ${isWarning ? '#b7791f' : '#c53030'}; letter-spacing: 1px; text-transform: uppercase;">${title}</h2>
+      <div style="width: 80px; height: 3px; background: ${isWarning ? '#b7791f' : '#c53030'}; margin: 12px auto 0;"></div>
+    </div>
+
+    <!-- Date and Reference -->
+    <div style="display: flex; justify-content: space-between; margin-bottom: 28px; font-size: 13px; color: #4a5568;">
+      <div>
+        <strong>Date:</strong> ${formalDate}
+      </div>
+      <div>
+        <strong>Ref:</strong> ${refNumber}
+      </div>
+    </div>
+
+    <!-- Employee Section -->
+    <div style="background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 4px; padding: 16px 20px; margin-bottom: 28px;">
+      <p style="margin: 0 0 4px 0; font-size: 14px; color: #2d3748;"><strong>To:</strong> ${opts.employeeName}</p>
+      <p style="margin: 0; font-size: 13px; color: #718096;">Employee ID: ${opts.employeeId}</p>
+    </div>
+
+    <!-- Body -->
+    <div style="font-size: 14px; line-height: 1.8; color: #2d3748; margin-bottom: 32px;">
+      <p style="margin: 0 0 16px 0;">Dear <strong>${opts.employeeName}</strong>,</p>
+      <p style="margin: 0 0 16px 0;">${bodyParagraph}</p>
+      <p style="margin: 0;">We value your contribution to our organization and expect your full cooperation in maintaining a professional and compliant work environment. Should you have any questions or wish to discuss this matter further, please contact the Human Resources Department at your earliest convenience.</p>
+    </div>
+
+    <!-- Signature -->
+    <div style="margin-top: 48px; text-align: right;">
+      <div style="display: inline-block; text-align: center;">
+        <p style="margin: 0 0 8px 0; font-size: 14px; color: #2d3748;"><strong>Authorized by:</strong></p>
+        <div style="width: 200px; border-bottom: 2px solid #2d3748; margin-bottom: 8px;"></div>
+        <p style="margin: 0 0 2px 0; font-size: 14px; font-weight: bold; color: #1a365d;">ASM Management</p>
+        <p style="margin: 0; font-size: 12px; color: #718096;">Human Resources Department</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="margin-top: 48px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 11px; color: #a0aec0; text-align: center;">
+      <p style="margin: 0 0 4px 0;">This notice was generated electronically by the Arabian Shield Manpower Management System.</p>
+      <p style="margin: 0 0 4px 0;">Date of issuance: ${formalDate} | Notice Reference: ${refNumber}</p>
+      <p style="margin: 0;">This document is confidential and intended solely for the named recipient.</p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+}
+
+function downloadNoticeHtml(opts: {
+  type: 'warning' | 'fine';
+  employeeName: string;
+  employeeId: string;
+  reason: string;
+  date: string;
+  amount?: number;
+  noticeNumber?: string;
+}) {
+  const html = generateNoticeHtml(opts);
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const datePart = new Date(opts.date).toISOString().split('T')[0];
+  const filename = `${opts.type === 'warning' ? 'Warning' : 'Fine'}_${opts.employeeId}_${datePart}.html`;
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function formatWhatsAppPhone(phone: string | null): string {
+  if (!phone) return '';
+  let cleaned = phone.replace(/[^0-9]/g, '');
+  if (cleaned.startsWith('0')) cleaned = cleaned.substring(1);
+  if (cleaned.startsWith('966')) return cleaned;
+  if (cleaned.length === 9) return '966' + cleaned;
+  return '966' + cleaned;
 }
 
 /* ───────── Skeleton Cards ───────── */
@@ -240,7 +409,9 @@ function NotificationCard({
   amount,
   onMarkRead,
   onWhatsApp,
+  onDownload,
   badge,
+  type,
 }: {
   employeeName: string;
   employeeCode: string;
@@ -251,7 +422,9 @@ function NotificationCard({
   amount?: number;
   onMarkRead?: () => void;
   onWhatsApp?: () => void;
+  onDownload?: () => void;
   badge?: React.ReactNode;
+  type?: 'warning' | 'fine';
 }) {
   return (
     <div
@@ -316,10 +489,180 @@ function NotificationCard({
                 WhatsApp
               </Button>
             )}
+            {onDownload && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onDownload}
+                className="h-7 px-2 text-xs text-slate-400 hover:text-white hover:bg-slate-700"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                Download
+              </Button>
+            )}
           </div>
         </div>
       </div>
     </div>
+  );
+}
+
+/* ───────── Employee Search Combobox ───────── */
+function EmployeeSearchCombobox({
+  employees,
+  onSelect,
+  selectedId,
+}: {
+  employees: EmployeeOption[];
+  onSelect: (emp: EmployeeOption) => void;
+  selectedId: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const selectedEmployee = useMemo(
+    () => employees.find((e) => e.id === selectedId),
+    [employees, selectedId]
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="w-full justify-between bg-slate-800 border-slate-700 text-white hover:bg-slate-700 hover:text-white text-sm"
+        >
+          {selectedEmployee
+            ? `${selectedEmployee.fullName} (${selectedEmployee.employeeId})`
+            : 'Search employees...'}
+          <SearchIcon className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0 bg-slate-800 border-slate-600" align="start">
+        <Command className="bg-slate-800">
+          <CommandInput placeholder="Type to search..." className="text-white" />
+          <CommandList>
+            <CommandEmpty className="text-slate-400">No employees found.</CommandEmpty>
+            <CommandGroup>
+              {employees.map((emp) => (
+                <CommandItem
+                  key={emp.id}
+                  value={`${emp.fullName} ${emp.employeeId} ${emp.position || ''}`}
+                  onSelect={() => {
+                    onSelect(emp);
+                    setOpen(false);
+                  }}
+                  className="text-slate-200 data-[selected=true]:bg-slate-700 data-[selected=true]:text-white"
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm">{emp.fullName}</span>
+                    <span className="text-[11px] text-slate-500">
+                      {emp.employeeId}
+                      {emp.position ? ` · ${emp.position}` : ''}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/* ───────── Success Actions Dialog ───────── */
+function SuccessActionsDialog({
+  open,
+  onOpenChange,
+  type,
+  employeeName,
+  employeeId,
+  reason,
+  date,
+  amount,
+  phone,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  type: 'warning' | 'fine';
+  employeeName: string;
+  employeeId: string;
+  reason: string;
+  date: string;
+  amount?: number;
+  phone?: string | null;
+}) {
+  const whatsappPhone = phone ? formatWhatsAppPhone(phone) : '';
+
+  const whatsappMessage = type === 'warning'
+    ? `⚠️ *NOTICE OF WARNING*\n\n` +
+      `*ARABIAN SHIELD MANPOWER*\n\n` +
+      `Dear ${employeeName} (${employeeId}),\n\n` +
+      `This is to formally notify you that a warning has been issued against your employee record.\n\n` +
+      `*Reason:* ${reason}\n` +
+      `*Date:* ${formatDate(date)}\n\n` +
+      `This warning has been documented in your personnel file. Please ensure compliance with all company policies.\n\n` +
+      `_ASM Management_`
+    : `💰 *NOTICE OF FINE*\n\n` +
+      `*ARABIAN SHIELD MANPOWER*\n\n` +
+      `Dear ${employeeName} (${employeeId}),\n\n` +
+      `This is to formally notify you that a financial penalty has been imposed against your employee record.\n\n` +
+      `*Reason:* ${reason}\n` +
+      `*Amount:* ${formatCurrency(amount || 0)}\n` +
+      `*Date:* ${formatDate(date)}\n\n` +
+      `The total amount will be deducted from your upcoming salary. Please ensure compliance with all company policies.\n\n` +
+      `_ASM Management_`;
+
+  const handleWhatsApp = () => {
+    const url = whatsappPhone
+      ? `https://wa.me/${whatsappPhone}?text=${encodeURIComponent(whatsappMessage)}`
+      : `https://wa.me/?text=${encodeURIComponent(whatsappMessage)}`;
+    window.open(url, '_blank');
+  };
+
+  const handleDownload = () => {
+    downloadNoticeHtml({
+      type,
+      employeeName,
+      employeeId,
+      reason,
+      date,
+      amount,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="bg-slate-800 border-slate-700 text-white sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="text-green-400 flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5" />
+            {type === 'warning' ? 'Warning Issued Successfully' : 'Fine Issued Successfully'}
+          </DialogTitle>
+          <DialogDescription className="text-slate-400">
+            The {type} for {employeeName} has been recorded. You can send it via WhatsApp or download the formal notice.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-3 py-2">
+          <Button
+            onClick={handleWhatsApp}
+            className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+          >
+            <MessageSquare className="h-4 w-4" />
+            Send via WhatsApp
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleDownload}
+            className="w-full border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700 gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download Notice
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -459,6 +802,58 @@ function WarningsTab({ userId }: { userId: string }) {
   const [yearFilter, setYearFilter] = useState<string>(String(currentYear));
   const [monthFilter, setMonthFilter] = useState<string>('all');
 
+  // Create warning dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption | null>(null);
+  const [warningReason, setWarningReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+
+  // Success actions dialog state
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [lastCreated, setLastCreated] = useState<{
+    employeeName: string;
+    employeeId: string;
+    reason: string;
+    date: string;
+    phone: string | null;
+  } | null>(null);
+
+  const fetchEmployees = useCallback(async () => {
+    setEmployeesLoading(true);
+    try {
+      const res = await fetch('/api/employees?status=active&limit=1000');
+      const data = await res.json();
+      if (data.success && data.data?.employees) {
+        setEmployees(
+          data.data.employees.map((e: { id: string; fullName: string; employeeId: string; phone: string | null; position: string | null; nationality: string | null; currentSite: string | null }) => ({
+            id: e.id,
+            fullName: e.fullName,
+            employeeId: e.employeeId,
+            phone: e.phone,
+            position: e.position,
+            nationality: e.nationality,
+            currentSite: e.currentSite,
+          }))
+        );
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, []);
+
+  const openCreateDialog = useCallback(() => {
+    setSelectedEmployee(null);
+    setWarningReason('');
+    if (employees.length === 0) {
+      fetchEmployees();
+    }
+    setCreateDialogOpen(true);
+  }, [employees.length, fetchEmployees]);
+
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
@@ -520,6 +915,16 @@ function WarningsTab({ userId }: { userId: string }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const handleDownload = (warning: Warning) => {
+    downloadNoticeHtml({
+      type: 'warning',
+      employeeName: warning.employee.fullName,
+      employeeId: warning.employee.employeeId,
+      reason: warning.reason,
+      date: warning.createdAt,
+    });
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await fetch('/api/notifications', {
@@ -534,15 +939,46 @@ function WarningsTab({ userId }: { userId: string }) {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.read && n.type === 'warning').length;
+  const handleCreateWarning = async () => {
+    if (!selectedEmployee || !warningReason.trim()) {
+      toast({ title: 'Validation Error', description: 'Please select an employee and provide a reason.', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/warnings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: selectedEmployee.id,
+          reason: warningReason.trim(),
+          createdById: userId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Warning Issued', description: `Warning issued to ${selectedEmployee.fullName}` });
+        setCreateDialogOpen(false);
+        setLastCreated({
+          employeeName: selectedEmployee.fullName,
+          employeeId: selectedEmployee.employeeId,
+          reason: warningReason.trim(),
+          date: new Date().toISOString(),
+          phone: selectedEmployee.phone,
+        });
+        setSuccessDialogOpen(true);
+        fetchData();
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to create warning', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to create warning', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  let parsedAbsentDates: string[] = [];
-  try {
-    parsedAbsentDates = warnings.length > 0 && warnings[0].absentDates
-      ? JSON.parse(warnings[0].absentDates) : [];
-  } catch {
-    // ignore
-  }
+  const unreadCount = notifications.filter((n) => !n.read && n.type === 'warning').length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -572,17 +1008,27 @@ function WarningsTab({ userId }: { userId: string }) {
             </SelectContent>
           </Select>
         </div>
-        {unreadCount > 0 && (
+        <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
             size="sm"
-            onClick={handleMarkAllRead}
-            className="h-8 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+            onClick={openCreateDialog}
+            className="h-8 bg-amber-600 hover:bg-amber-700 text-white text-xs gap-1.5"
           >
-            <CheckCheck className="h-3.5 w-3.5 mr-1" />
-            Mark All Read ({unreadCount})
+            <Plus className="h-3.5 w-3.5" />
+            Issue Warning
           </Button>
-        )}
+          {unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAllRead}
+              className="h-8 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+            >
+              <CheckCheck className="h-3.5 w-3.5 mr-1" />
+              Mark All Read ({unreadCount})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* List */}
@@ -601,6 +1047,7 @@ function WarningsTab({ userId }: { userId: string }) {
             return (
               <NotificationCard
                 key={w.id}
+                type="warning"
                 employeeName={w.employee.fullName}
                 employeeCode={w.employee.employeeId}
                 reason={w.reason}
@@ -608,6 +1055,7 @@ function WarningsTab({ userId }: { userId: string }) {
                 isUnread={unread}
                 onMarkRead={() => handleMarkRead(w.id)}
                 onWhatsApp={() => handleWhatsApp(w)}
+                onDownload={() => handleDownload(w)}
                 badge={
                   w.isAutoGenerated ? (
                     <Badge className="bg-purple-500/20 text-purple-400 border border-purple-500/30 text-[10px] px-1.5 py-0">
@@ -635,6 +1083,79 @@ function WarningsTab({ userId }: { userId: string }) {
           })
         )}
       </div>
+
+      {/* Create Warning Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              Issue Warning
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Select an employee and provide the reason for the warning.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm text-slate-300">Employee</Label>
+              {employeesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading employees...
+                </div>
+              ) : (
+                <EmployeeSearchCombobox
+                  employees={employees}
+                  onSelect={setSelectedEmployee}
+                  selectedId={selectedEmployee?.id || null}
+                />
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm text-slate-300">Reason <span className="text-red-400">*</span></Label>
+              <Textarea
+                value={warningReason}
+                onChange={(e) => setWarningReason(e.target.value)}
+                placeholder="Enter the reason for the warning..."
+                className="min-h-[100px] bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateWarning}
+              disabled={submitting || !selectedEmployee || !warningReason.trim()}
+              className="bg-amber-600 hover:bg-amber-700 text-white gap-2"
+            >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? 'Issuing...' : 'Issue Warning'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Actions Dialog */}
+      {lastCreated && (
+        <SuccessActionsDialog
+          open={successDialogOpen}
+          onOpenChange={setSuccessDialogOpen}
+          type="warning"
+          employeeName={lastCreated.employeeName}
+          employeeId={lastCreated.employeeId}
+          reason={lastCreated.reason}
+          date={lastCreated.date}
+          phone={lastCreated.phone}
+        />
+      )}
     </div>
   );
 }
@@ -646,6 +1167,61 @@ function FinesTab({ userId }: { userId: string }) {
   const [loading, setLoading] = useState(true);
   const [yearFilter, setYearFilter] = useState<string>(String(currentYear));
   const [monthFilter, setMonthFilter] = useState<string>('all');
+
+  // Create fine dialog state
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<EmployeeOption | null>(null);
+  const [fineReason, setFineReason] = useState('');
+  const [fineAmount, setFineAmount] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+  const [employeesLoading, setEmployeesLoading] = useState(false);
+
+  // Success actions dialog state
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [lastCreated, setLastCreated] = useState<{
+    employeeName: string;
+    employeeId: string;
+    reason: string;
+    date: string;
+    amount: number;
+    phone: string | null;
+  } | null>(null);
+
+  const fetchEmployees = useCallback(async () => {
+    setEmployeesLoading(true);
+    try {
+      const res = await fetch('/api/employees?status=active&limit=1000');
+      const data = await res.json();
+      if (data.success && data.data?.employees) {
+        setEmployees(
+          data.data.employees.map((e: { id: string; fullName: string; employeeId: string; phone: string | null; position: string | null; nationality: string | null; currentSite: string | null }) => ({
+            id: e.id,
+            fullName: e.fullName,
+            employeeId: e.employeeId,
+            phone: e.phone,
+            position: e.position,
+            nationality: e.nationality,
+            currentSite: e.currentSite,
+          }))
+        );
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, []);
+
+  const openCreateDialog = useCallback(() => {
+    setSelectedEmployee(null);
+    setFineReason('');
+    setFineAmount('');
+    if (employees.length === 0) {
+      fetchEmployees();
+    }
+    setCreateDialogOpen(true);
+  }, [employees.length, fetchEmployees]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -708,6 +1284,17 @@ function FinesTab({ userId }: { userId: string }) {
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
   };
 
+  const handleDownload = (fine: Fine) => {
+    downloadNoticeHtml({
+      type: 'fine',
+      employeeName: fine.employee.fullName,
+      employeeId: fine.employee.employeeId,
+      reason: fine.reason,
+      date: fine.createdAt,
+      amount: fine.amount,
+    });
+  };
+
   const handleMarkAllRead = async () => {
     try {
       await fetch('/api/notifications', {
@@ -719,6 +1306,47 @@ function FinesTab({ userId }: { userId: string }) {
       toast({ title: 'All fines marked as read' });
     } catch {
       toast({ title: 'Error', description: 'Failed to mark all as read', variant: 'destructive' });
+    }
+  };
+
+  const handleCreateFine = async () => {
+    if (!selectedEmployee || !fineReason.trim() || !fineAmount || isNaN(Number(fineAmount)) || Number(fineAmount) <= 0) {
+      toast({ title: 'Validation Error', description: 'Please select an employee, provide a reason, and enter a valid amount.', variant: 'destructive' });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/fines', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          employeeId: selectedEmployee.id,
+          reason: fineReason.trim(),
+          amount: Number(fineAmount),
+          createdById: userId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Fine Issued', description: `Fine of ${formatCurrency(Number(fineAmount))} issued to ${selectedEmployee.fullName}` });
+        setCreateDialogOpen(false);
+        setLastCreated({
+          employeeName: selectedEmployee.fullName,
+          employeeId: selectedEmployee.employeeId,
+          reason: fineReason.trim(),
+          date: new Date().toISOString(),
+          amount: Number(fineAmount),
+          phone: selectedEmployee.phone,
+        });
+        setSuccessDialogOpen(true);
+        fetchData();
+      } else {
+        toast({ title: 'Error', description: data.error || 'Failed to create fine', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to create fine', variant: 'destructive' });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -758,17 +1386,27 @@ function FinesTab({ userId }: { userId: string }) {
             </Badge>
           )}
         </div>
-        {unreadCount > 0 && (
+        <div className="flex items-center gap-2">
           <Button
-            variant="ghost"
             size="sm"
-            onClick={handleMarkAllRead}
-            className="h-8 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+            onClick={openCreateDialog}
+            className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs gap-1.5"
           >
-            <CheckCheck className="h-3.5 w-3.5 mr-1" />
-            Mark All Read ({unreadCount})
+            <Plus className="h-3.5 w-3.5" />
+            Issue Fine
           </Button>
-        )}
+          {unreadCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleMarkAllRead}
+              className="h-8 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10"
+            >
+              <CheckCheck className="h-3.5 w-3.5 mr-1" />
+              Mark All Read ({unreadCount})
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* List */}
@@ -781,6 +1419,7 @@ function FinesTab({ userId }: { userId: string }) {
           fines.map((f) => (
             <NotificationCard
               key={f.id}
+              type="fine"
               employeeName={f.employee.fullName}
               employeeCode={f.employee.employeeId}
               reason={f.reason}
@@ -789,10 +1428,97 @@ function FinesTab({ userId }: { userId: string }) {
               amount={f.amount}
               onMarkRead={() => handleMarkRead(f.id)}
               onWhatsApp={() => handleWhatsApp(f)}
+              onDownload={() => handleDownload(f)}
             />
           ))
         )}
       </div>
+
+      {/* Create Fine Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-red-400" />
+              Issue Fine
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Select an employee, provide the reason and amount for the fine.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm text-slate-300">Employee</Label>
+              {employeesLoading ? (
+                <div className="flex items-center gap-2 text-sm text-slate-400 py-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Loading employees...
+                </div>
+              ) : (
+                <EmployeeSearchCombobox
+                  employees={employees}
+                  onSelect={setSelectedEmployee}
+                  selectedId={selectedEmployee?.id || null}
+                />
+              )}
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm text-slate-300">Reason <span className="text-red-400">*</span></Label>
+              <Textarea
+                value={fineReason}
+                onChange={(e) => setFineReason(e.target.value)}
+                placeholder="Enter the reason for the fine..."
+                className="min-h-[100px] bg-slate-900 border-slate-700 text-white placeholder:text-slate-500 resize-none"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label className="text-sm text-slate-300">Amount (SAR) <span className="text-red-400">*</span></Label>
+              <Input
+                type="number"
+                min="1"
+                step="0.01"
+                value={fineAmount}
+                onChange={(e) => setFineAmount(e.target.value)}
+                placeholder="Enter amount in SAR"
+                className="bg-slate-900 border-slate-700 text-white placeholder:text-slate-500"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              className="border-slate-600 text-slate-300 hover:text-white hover:bg-slate-700"
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateFine}
+              disabled={submitting || !selectedEmployee || !fineReason.trim() || !fineAmount || isNaN(Number(fineAmount)) || Number(fineAmount) <= 0}
+              className="bg-red-600 hover:bg-red-700 text-white gap-2"
+            >
+              {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {submitting ? 'Issuing...' : 'Issue Fine'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Success Actions Dialog */}
+      {lastCreated && (
+        <SuccessActionsDialog
+          open={successDialogOpen}
+          onOpenChange={setSuccessDialogOpen}
+          type="fine"
+          employeeName={lastCreated.employeeName}
+          employeeId={lastCreated.employeeId}
+          reason={lastCreated.reason}
+          date={lastCreated.date}
+          amount={lastCreated.amount}
+          phone={lastCreated.phone}
+        />
+      )}
     </div>
   );
 }

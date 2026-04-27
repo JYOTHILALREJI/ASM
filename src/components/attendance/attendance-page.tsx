@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Check,
   Clock,
+  Search,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -628,10 +629,15 @@ export function AttendancePage() {
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [totalEmployees, setTotalEmployees] = useState(0);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [loadingAttendance, setLoadingAttendance] = useState(true);
 
+  const [search, setSearch] = useState('');
+  const [searchDebounce, setSearchDebounce] = useState('');
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 
   const month = parseInt(selectedMonth, 10);
@@ -649,13 +655,30 @@ export function AttendancePage() {
     return map;
   }, [attendanceRecords]);
 
-  // Fetch employees
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchDebounce(search);
+      setPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const totalPages = Math.ceil(totalEmployees / pageSize);
+
+  // Fetch employees with search and pagination
   useEffect(() => {
     let cancelled = false;
     const fetchEmployees = async () => {
       setLoadingEmployees(true);
       try {
-        const res = await fetch('/api/employees?limit=200&status=active');
+        const params = new URLSearchParams({
+          limit: String(pageSize),
+          page: String(page),
+          status: 'active',
+        });
+        if (searchDebounce) params.set('search', searchDebounce);
+        const res = await fetch(`/api/employees?${params.toString()}`);
         const data = await res.json();
         if (cancelled) return;
         if (data.success) {
@@ -663,6 +686,7 @@ export function AttendancePage() {
             (e: Employee) => e.currentSite !== 'Idle'
           );
           setEmployees(emps);
+          setTotalEmployees(data.data.total || 0);
           if (!selectedEmployeeId && emps.length > 0) {
             setSelectedEmployeeId(emps[0].id);
           }
@@ -675,7 +699,7 @@ export function AttendancePage() {
     };
     fetchEmployees();
     return () => { cancelled = true; };
-  }, []);
+  }, [searchDebounce, page]);
 
   // Fetch attendance
   useEffect(() => {
@@ -864,6 +888,78 @@ export function AttendancePage() {
             ))}
           </SelectContent>
         </Select>
+
+        {/* Search */}
+        <div className="relative flex-1 max-w-xs">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search employees..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-9 bg-slate-800 border-slate-700 text-sm text-white placeholder:text-slate-500 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+          />
+        </div>
+      </div>
+
+      {/* Pagination */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-slate-400">
+          Showing <span className="text-white font-medium">{employees.length}</span> of{' '}
+          <span className="text-white font-medium">{totalEmployees}</span> employees
+          {searchDebounce && <span> matching &ldquo;<span className="text-emerald-400">{searchDebounce}</span>&rdquo;</span>}
+        </p>
+        {totalPages > 1 && (
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="flex items-center gap-1 px-2">
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                let pageNum: number;
+                if (totalPages <= 5) {
+                  pageNum = i + 1;
+                } else if (page <= 3) {
+                  pageNum = i + 1;
+                } else if (page >= totalPages - 2) {
+                  pageNum = totalPages - 4 + i;
+                } else {
+                  pageNum = page - 2 + i;
+                }
+                return (
+                  <Button
+                    key={pageNum}
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      'h-8 w-8 text-sm font-medium',
+                      page === pageNum
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                    )}
+                    onClick={() => setPage(pageNum)}
+                  >
+                    {pageNum}
+                  </Button>
+                );
+              })}
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-slate-400 hover:text-white hover:bg-slate-700"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Content */}

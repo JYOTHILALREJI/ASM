@@ -205,15 +205,6 @@ export function SitesPage() {
     });
   }, []);
 
-  const toggleSelectAll = useCallback(() => {
-    const filtered = filteredEmployees;
-    if (selectedEmps.size === filtered.length) {
-      setSelectedEmps(new Set());
-    } else {
-      setSelectedEmps(new Set(filtered.map((e) => e.id)));
-    }
-  }, [selectedEmps, filteredEmployees]);
-
   // Filter logic
   const filteredSites = sites.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase())
@@ -229,6 +220,14 @@ export function SitesPage() {
       (e.nationality && e.nationality.toLowerCase().includes(q))
     );
   });
+
+  const toggleSelectAll = useCallback(() => {
+    if (selectedEmps.size === filteredEmployees.length) {
+      setSelectedEmps(new Set());
+    } else {
+      setSelectedEmps(new Set(filteredEmployees.map((e) => e.id)));
+    }
+  }, [selectedEmps, filteredEmployees]);
 
   // Star rating component
   const StarRating = ({ rating }: { rating: number }) => {

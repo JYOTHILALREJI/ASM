@@ -1,10 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Menu, Search, Bell, LogOut, User } from 'lucide-react';
+import { Menu, Bell, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +20,7 @@ import { cn } from '@/lib/utils';
 const viewTitles: Record<string, string> = {
   dashboard: 'Dashboard',
   employees: 'Employee Management',
+  sites: 'Sites',
   attendance: 'Attendance Tracking',
   notifications: 'Notifications',
   admins: 'Admin Management',
@@ -67,17 +67,6 @@ export function AppHeader() {
           </Button>
         )}
         <h1 className="text-lg font-semibold text-white">{title}</h1>
-      </div>
-
-      {/* Center - Search */}
-      <div className="hidden md:flex flex-1 max-w-md mx-4">
-        <div className="relative w-full">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <Input
-            placeholder="Search..."
-            className="pl-9 bg-slate-800/50 border-slate-700/50 text-slate-300 placeholder:text-slate-500 focus-visible:border-blue-500/50 focus-visible:ring-blue-500/20 h-9"
-          />
-        </div>
       </div>
 
       {/* Right Section */}
