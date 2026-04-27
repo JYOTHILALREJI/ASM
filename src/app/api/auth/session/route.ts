@@ -3,12 +3,15 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    const userCount = await db.user.count();
+    const superAdmin = await db.user.findFirst({
+      where: { role: 'super_admin' },
+      select: { id: true },
+    });
 
     return NextResponse.json({
       success: true,
       data: {
-        hasUsers: userCount > 0,
+        hasUsers: !!superAdmin,
       },
     });
   } catch (error: unknown) {

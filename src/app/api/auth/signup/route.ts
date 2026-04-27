@@ -14,12 +14,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if any users exist - one-time signup only
-    const userCount = await db.user.count();
+    // Check if a super admin already exists - first signup becomes super admin
+    const superAdmin = await db.user.findFirst({
+      where: { role: 'super_admin' },
+      select: { id: true },
+    });
 
-    if (userCount > 0) {
+    if (superAdmin) {
       return NextResponse.json(
-        { success: false, error: 'Super admin already exists. Only one initial signup is allowed.' },
+        { success: false, error: 'Super admin already exists. Contact your administrator for access.' },
         { status: 403 }
       );
     }
