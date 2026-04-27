@@ -1278,6 +1278,8 @@ export function EmployeePage() {
          ═══════════════════════════════════════════════════════════════════ */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
         <DialogContent className="bg-slate-800 border-slate-700 max-w-2xl max-h-[90vh] p-0 gap-0 overflow-hidden">
+          <DialogTitle className="sr-only">{viewingEmployee ? `Employee Details - ${viewingEmployee.fullName}` : 'Employee Details'}</DialogTitle>
+          <DialogDescription className="sr-only">{viewingEmployee ? `Details for ${viewingEmployee.fullName} (${viewingEmployee.employeeId})` : 'View employee information'}</DialogDescription>
           {viewingEmployee && (
             <>
               {/* Header */}
