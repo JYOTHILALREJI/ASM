@@ -96,6 +96,7 @@ export async function POST(
       { status: 201 }
     );
   } catch (error: unknown) {
+    console.error('[Delete Request Error]', error);
     const message = error instanceof Error ? error.message : 'Internal server error';
     return NextResponse.json(
       { success: false, error: message },

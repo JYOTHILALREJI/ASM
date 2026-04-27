@@ -8,7 +8,7 @@ import {
   Clock,
   Building2,
   CalendarDays,
-  CalendarIcon,
+  ChevronDown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -28,9 +28,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar } from '@/components/ui/calendar';
-import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import {
   BarChart,
@@ -87,12 +84,36 @@ interface MonthlyChartData {
   overtime: number;
 }
 
+// Generate all dates of a given month (up to today)
+function getMonthDates(yearNum: number, monthNum: number) {
+  const now = new Date();
+  const today = now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate();
+  const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
+  const dates: { value: string; label: string; dayNum: number }[] = [];
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const dateKey = `${yearNum}-${String(monthNum).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+    const dateNum = yearNum * 10000 + monthNum * 100 + d;
+    const isFuture = dateNum > today;
+    const dayOfWeek = new Date(yearNum, monthNum - 1, d).getDay();
+    const isFriday = dayOfWeek === 5;
+    const dayName = new Date(yearNum, monthNum - 1, d).toLocaleDateString('en-US', { weekday: 'short' });
+
+    dates.push({
+      value: dateKey,
+      label: `${dayName}, ${format(new Date(yearNum, monthNum - 1, d), 'MMM d')}${isFuture ? ' (upcoming)' : isFriday ? ' (Fri)' : ''}`,
+      dayNum: d,
+    });
+  }
+
+  return dates;
+}
+
 export function DashboardPage() {
   const now = new Date();
   const [month, setMonth] = useState(String(now.getMonth() + 1));
   const [year, setYear] = useState(String(now.getFullYear()));
-  const [selectedDate, setSelectedDate] = useState<Date>(now);
-  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<string>(format(now, 'yyyy-MM-dd'));
 
   const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
@@ -100,6 +121,9 @@ export function DashboardPage() {
 
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [loadingAttendance, setLoadingAttendance] = useState(true);
+
+  const monthNum = parseInt(month, 10);
+  const yearNum = parseInt(year, 10);
 
   // Format today's date with day name
   const todayDisplay = useMemo(() => {
@@ -117,7 +141,15 @@ export function DashboardPage() {
     ];
   }, []);
 
-  const monthParam = `${year}-${month.padStart(2, '0')}`;
+  // Generate all dates of the selected month
+  const monthDates = useMemo(() => {
+    return getMonthDates(yearNum, monthNum);
+  }, [yearNum, monthNum]);
+
+  // Check if selected date is valid for current month
+  const selectedDateInMonth = useMemo(() => {
+    return monthDates.some((d) => d.value === selectedDate);
+  }, [monthDates, selectedDate]);
 
   // Fetch total employees
   const fetchEmployees = useCallback(async () => {
@@ -164,39 +196,54 @@ export function DashboardPage() {
     fetchAttendance(month, year);
   }, [month, year, fetchAttendance]);
 
-  // Handle date selection - auto-update month/year to match
-  const handleDateSelect = useCallback((date: Date | undefined) => {
-    if (date) {
-      setSelectedDate(date);
-      const newMonth = String(date.getMonth() + 1);
-      const newYear = String(date.getFullYear());
-      if (newMonth !== month || newYear !== year) {
-        setMonth(newMonth);
-        setYear(newYear);
-      }
-      setCalendarOpen(false);
+  // Handle month/year change - reset selected date to today or last valid date
+  useEffect(() => {
+    const todayStr = format(now, 'yyyy-MM-dd');
+    const inMonth = monthDates.some((d) => d.value === todayStr);
+    if (inMonth) {
+      setSelectedDate(todayStr);
+    } else {
+      // Select the latest date in the month
+      const lastDate = monthDates[monthDates.length - 1];
+      if (lastDate) setSelectedDate(lastDate.value);
     }
-  }, [month, year]);
+  }, [monthDates]);
+
+  const monthParam = `${year}-${month.padStart(2, '0')}`;
 
   // Compute metrics from attendance data based on selected date
-  const selectedDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const selectedDateRecords = attendanceRecords.filter((r) => r.date === selectedDateStr);
+  const selectedDateRecords = attendanceRecords.filter((r) => r.date === selectedDate);
   const presentCount = selectedDateRecords.filter((r) => r.status === 'present').length;
   const absentCount = selectedDateRecords.filter((r) => r.status === 'absent').length;
   const overtimeCount = selectedDateRecords.filter((r) => r.status === 'overtime').length;
 
-  // Compute monthly chart data (last 6 months)
+  const selectedDateDisplay = useMemo(() => {
+    try {
+      return format(new Date(selectedDate + 'T00:00:00'), 'MMM d, yyyy');
+    } catch {
+      return selectedDate;
+    }
+  }, [selectedDate]);
+
+  const selectedDayName = useMemo(() => {
+    try {
+      return format(new Date(selectedDate + 'T00:00:00'), 'EEEE');
+    } catch {
+      return '';
+    }
+  }, [selectedDate]);
+
+  const isToday = selectedDate === format(now, 'yyyy-MM-dd');
+
+  // Compute monthly chart data
   const monthlyChartData: MonthlyChartData[] = useMemo(() => {
     const data: MonthlyChartData[] = [];
-    const currentYearNum = parseInt(year, 10);
-    const currentMonthNum = parseInt(month, 10);
+    const currentYearN = parseInt(year, 10);
+    const currentMonthN = parseInt(month, 10);
 
-    // We use the attendance records we already have for the selected month,
-    // but for other months we don't have data — show what we have
-    // For simplicity, generate the 6 months ending at the selected month
     for (let i = 5; i >= 0; i--) {
-      let m = currentMonthNum - i;
-      let y = currentYearNum;
+      let m = currentMonthN - i;
+      let y = currentYearN;
       while (m <= 0) {
         m += 12;
         y -= 1;
@@ -215,7 +262,7 @@ export function DashboardPage() {
     return data;
   }, [attendanceRecords, month, year]);
 
-  // Compute pie chart data (status distribution of employees)
+  // Compute pie chart data
   const pieData = useMemo(() => {
     const active = employees.filter((e) => e.status === 'active').length;
     const pending = employees.filter((e) => e.status === 'pending_deletion').length;
@@ -244,9 +291,6 @@ export function DashboardPage() {
       .sort((a, b) => b.count - a.count);
   }, [employees]);
 
-  const selectedDateDisplay = format(selectedDate, 'MMM d, yyyy');
-  const isToday = format(selectedDate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
-
   const metrics = [
     {
       title: 'Total Employees',
@@ -257,28 +301,28 @@ export function DashboardPage() {
       subtitle: null,
     },
     {
-      title: isToday ? 'Present Today' : 'Present',
+      title: 'Present',
       value: loadingAttendance ? null : presentCount,
       icon: CheckCircle,
       color: 'text-green-400',
       bgColor: 'bg-green-500/10',
-      subtitle: isToday ? null : selectedDateDisplay,
+      subtitle: `${selectedDayName}, ${selectedDateDisplay}`,
     },
     {
-      title: isToday ? 'Absent Today' : 'Absent',
+      title: 'Absent',
       value: loadingAttendance ? null : absentCount,
       icon: XCircle,
       color: 'text-red-400',
       bgColor: 'bg-red-500/10',
-      subtitle: isToday ? null : selectedDateDisplay,
+      subtitle: `${selectedDayName}, ${selectedDateDisplay}`,
     },
     {
-      title: isToday ? 'Overtime Today' : 'Overtime',
+      title: 'Overtime',
       value: loadingAttendance ? null : overtimeCount,
       icon: Clock,
       color: 'text-cyan-400',
       bgColor: 'bg-cyan-500/10',
-      subtitle: isToday ? null : selectedDateDisplay,
+      subtitle: `${selectedDayName}, ${selectedDateDisplay}`,
     },
   ];
 
@@ -297,34 +341,29 @@ export function DashboardPage() {
           </p>
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Date Picker for Attendance Cards */}
-          <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className="w-[200px] justify-start text-left font-normal bg-slate-800 border-slate-700 text-slate-200 hover:bg-slate-700 hover:text-white"
-              >
-                <CalendarIcon className="h-4 w-4 mr-2 text-slate-400" />
-                {format(selectedDate, 'dd MMM yyyy')}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0 bg-slate-800 border-slate-700" align="end">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={handleDateSelect}
-                className="bg-slate-800 text-slate-200"
-                classNames={{
-                  day: 'data-[selected=true]:bg-emerald-600 data-[selected=true]:text-white hover:bg-slate-700',
-                  today: 'bg-slate-700 text-white rounded-md data-[selected=true]:rounded-none',
-                  outside: 'text-slate-500 aria-selected:text-slate-500',
-                }}
-              />
-            </PopoverContent>
-          </Popover>
+          {/* Date Dropdown - all dates of current month */}
+          <Select value={selectedDate} onValueChange={setSelectedDate}>
+            <SelectTrigger className="w-[220px] bg-slate-800 border-slate-700 text-slate-200">
+              <CalendarDays className="h-4 w-4 mr-2 text-slate-400" />
+              <SelectValue placeholder="Select date" />
+            </SelectTrigger>
+            <SelectContent className="dropdown-upward bg-slate-800 border-slate-700 max-h-72">
+              {monthDates.map((d) => (
+                <SelectItem
+                  key={d.value}
+                  value={d.value}
+                  className="text-slate-200 focus:bg-slate-700 focus:text-white"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 w-5 text-right">{d.dayNum}</span>
+                    {d.label}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Select value={month} onValueChange={setMonth}>
             <SelectTrigger className="w-[140px] bg-slate-800 border-slate-700 text-slate-200">
-              <CalendarDays className="h-4 w-4 mr-2 text-slate-400" />
               <SelectValue placeholder="Month" />
             </SelectTrigger>
             <SelectContent className="dropdown-upward bg-slate-800 border-slate-700">
