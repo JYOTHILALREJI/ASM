@@ -382,10 +382,17 @@ function ListView({
     position: { top: number; left: number };
   } | null>(null);
 
-  // For current month: reverse the days order, for past months: normal order
+  // For current month: today on the left, all previous dates to the right (no future dates)
+  // For past months: normal order (1, 2, 3... last day)
   const displayDays = useMemo(() => {
-    const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-    return isCurrentMonthView ? days.reverse() : days;
+    if (isCurrentMonthView) {
+      const today = new Date();
+      const currentDay = today.getDate();
+      // Only show days from 1 up to today, reversed: today on left, 1st on right
+      const days = Array.from({ length: currentDay }, (_, i) => currentDay - i);
+      return days;
+    }
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1);
   }, [daysInMonth, isCurrentMonthView]);
 
   // Get label for each day column header
@@ -443,7 +450,6 @@ function ListView({
             <div className="flex-1 flex">
               {displayDays.map((day) => {
                 const isFri = isFriday(year, month, day);
-                const isFuture = isFutureDate(day, month, year);
                 const label = getDayLabel(day);
                 const recent = isRecentDay(day);
                 return (
@@ -452,8 +458,7 @@ function ListView({
                     className={cn(
                       'w-16 shrink-0 text-center py-3 leading-tight',
                       isFri && 'text-red-400/50',
-                      isFuture && 'opacity-40',
-                      recent && !isFuture && 'text-emerald-400 font-semibold'
+                      recent && 'text-emerald-400 font-semibold'
                     )}
                   >
                     <span className={cn(recent && 'text-[10px] block')}>{label}</span>
@@ -500,7 +505,6 @@ function ListView({
                       const status = record?.status || 'not_marked';
                       const cfg = STATUS_CONFIG[status];
                       const isFri = isFriday(year, month, day);
-                      const isFuture = isFutureDate(day, month, year);
                       const recent = isRecentDay(day);
 
                       return (
@@ -509,11 +513,10 @@ function ListView({
                           className={cn(
                             'w-16 shrink-0 flex items-center justify-center py-1.5',
                             isFri && 'bg-red-500/5',
-                            isFuture && 'opacity-30',
-                            recent && !isFuture && 'bg-emerald-500/5'
+                            recent && 'bg-emerald-500/5'
                           )}
                         >
-                          {!isFuture && !isFri ? (
+                          {!isFri ? (
                             <button
                               onClick={(e) => {
                                 const rect = e.currentTarget.getBoundingClientRect();
@@ -534,11 +537,8 @@ function ListView({
                               {cfg.short}
                             </button>
                           ) : (
-                            <span className={cn(
-                              'h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-medium',
-                              isFri ? 'bg-red-500/10 text-red-400/40' : 'text-slate-600'
-                            )}>
-                              {isFri ? 'F' : '-'}
+                            <span className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-medium bg-red-500/10 text-red-400/40">
+                              F
                             </span>
                           )}
                         </div>
