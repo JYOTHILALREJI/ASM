@@ -114,23 +114,6 @@ export async function POST(request: NextRequest) {
         data: { status: 'pending_deletion' },
       });
 
-      // Notify super admins
-      const superAdmins = await tx.user.findMany({
-        where: { role: 'super_admin' },
-        select: { id: true },
-      });
-
-      for (const admin of superAdmins) {
-        await tx.notification.create({
-          data: {
-            userId: admin.id,
-            title: 'New Delete Request',
-            message: `A delete request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).`,
-            type: 'request',
-          },
-        });
-      }
-
       return request;
     });
 

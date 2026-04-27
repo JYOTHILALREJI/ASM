@@ -236,3 +236,26 @@ Stage Summary:
 - Files modified: src/app/api/employees/route.ts, src/components/attendance/attendance-page.tsx
 - New components: SearchableEmployeeSelect, SiteFilter (within attendance-page.tsx)
 - No lint errors, no compilation errors
+
+---
+Task ID: Fix-1
+Agent: Main Coordinator
+Task: Fix normal admin delete request flow - remove notification creation, store reason in DB only
+
+Work Log:
+- Analyzed the full delete request flow: admin dialog → API call → DB storage → notification page display
+- Identified that the API routes were creating Notification entries inside the same transaction as DeleteRequest creation, which could cause transaction failures
+- Removed notification creation from `/api/employees/[id]/delete-request/route.ts` POST handler
+- Removed notification creation from `/api/delete-requests/route.ts` POST handler
+- Both routes now simply: create DeleteRequest with reason → update employee status to pending_deletion
+- Verified notification-page.tsx RequestCard already displays reason (lines 365-368)
+- Regenerated Prisma client to ensure schema sync
+- Ran `prisma db push` to confirm DB is in sync
+- Ran `bun run lint` - 0 errors
+- Verified no stale pending_deletion employees in database
+
+Stage Summary:
+- Files modified: src/app/api/employees/[id]/delete-request/route.ts, src/app/api/delete-requests/route.ts
+- Delete requests now store reason in DB only, no separate notification messages created
+- Super admin sees delete requests with reasons in the Notifications page → Requests tab
+- All lint checks pass, dev server runs without errors
