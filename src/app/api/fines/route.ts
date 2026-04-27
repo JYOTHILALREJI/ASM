@@ -81,13 +81,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify creator exists
+    // Verify creator exists — if not, look up first available user as fallback
+    let finalCreatedById = createdById;
     const creator = await db.user.findUnique({ where: { id: createdById } });
     if (!creator) {
-      return NextResponse.json(
-        { success: false, error: 'Creator (user) not found' },
-        { status: 404 }
-      );
+      const fallbackUser = await db.user.findFirst({ select: { id: true } });
+      if (fallbackUser) {
+        finalCreatedById = fallbackUser.id;
+      } else {
+        return NextResponse.json(
+          { success: false, error: 'No user found in the system' },
+          { status: 400 }
+        );
+      }
     }
 
     const fine = await db.$transaction(async (tx) => {
@@ -96,7 +102,7 @@ export async function POST(request: NextRequest) {
           employeeId,
           reason,
           amount,
-          createdById,
+          createdById: finalCreatedById,
         },
         include: {
           employee: {
