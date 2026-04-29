@@ -60,7 +60,6 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog';
-// AlertDialog removed - now using Dialog for deletion
 import {
   Select,
   SelectContent,
@@ -105,6 +104,171 @@ interface Employee {
 interface Site {
   id: string;
   name: string;
+}
+
+// ─── Common Nationalities (for dropdown) ─────────────────────────────────
+
+const NATIONALITIES = [
+  'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
+  'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
+  'Democratic Republic of the Congo', 'Djibouti', 'Egypt', 'Equatorial Guinea',
+  'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon', 'Gambia', 'Ghana', 'Guinea',
+  'Guinea-Bissau', 'Ivory Coast', 'Kenya', 'Lesotho', 'Liberia', 'Libya',
+  'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
+  'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Republic of the Congo',
+  'Rwanda', 'São Tomé and Príncipe', 'Senegal', 'Seychelles', 'Sierra Leone',
+  'Somalia', 'South Africa', 'South Sudan', 'Sudan', 'Tanzania', 'Togo',
+  'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe', 'India', 'Pakistan', 'Bangladesh',
+];
+
+// ─── Searchable Nationality Dropdown ─────────────────────────────────────
+
+interface SearchableNationalitySelectProps {
+  value: string;
+  onChange: (value: string) => void;
+}
+
+function SearchableNationalitySelect({
+  value,
+  onChange,
+}: SearchableNationalitySelectProps) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = search
+    ? NATIONALITIES.filter((n) =>
+        n.toLowerCase().includes(search.toLowerCase())
+      )
+    : NATIONALITIES;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+        setSearch('');
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (open && inputRef.current) {
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  const handleSelect = (nationality: string) => {
+    onChange(nationality);
+    setOpen(false);
+    setSearch('');
+  };
+
+  const handleCustomInput = () => {
+    if (search.trim()) {
+      onChange(search.trim());
+      setOpen(false);
+      setSearch('');
+    }
+  };
+
+  function cn(arg0: string, arg1: string): string {
+    return `${arg0} ${arg1}`;
+  }
+
+  return (
+    <div ref={containerRef} className="relative w-full">
+      <div className="relative">
+        <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="flex items-center gap-2 w-full h-10 rounded-lg border border-slate-600 bg-slate-900 px-3 pl-10 text-sm text-white hover:bg-slate-800 transition-colors text-left"
+        >
+          <span className="truncate flex-1">{value || 'Select or type nationality'}</span>
+          {value && (
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                onChange('');
+              }}
+              className="text-slate-400 hover:text-white shrink-0"
+            >
+              <X className="h-3.5 w-3.5" />
+            </span>
+          )}
+        </button>
+      </div>
+
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-slate-800 border border-slate-600 rounded-lg shadow-xl shadow-black/40 overflow-hidden">
+          <div className="p-2 border-b border-slate-700">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search nationality or type custom..."
+                className="w-full h-8 pl-8 pr-3 bg-slate-900 border border-slate-600 rounded-md text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-emerald-500/50"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleCustomInput();
+                  }
+                }}
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+          <div className="max-h-56 overflow-y-auto">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-4 text-center text-sm text-slate-500">
+                No matching nationalities. Press Enter to add "{search}".
+              </div>
+            ) : (
+              filtered.map((nat) => (
+                <button
+                  key={nat}
+                  type="button"
+                  onClick={() => handleSelect(nat)}
+                  className={cn(
+                    'flex items-center gap-2 w-full px-3 py-2 text-sm text-left transition-colors hover:bg-slate-700/50',
+                    value === nat ? 'bg-slate-700/70 text-white' : 'text-slate-300'
+                  )}
+                >
+                  <Globe className="h-3.5 w-3.5 shrink-0 opacity-60" />
+                  <span className="truncate">{nat}</span>
+                </button>
+              ))
+            )}
+            {search.trim() && !filtered.some(n => n.toLowerCase() === search.toLowerCase()) && (
+              <button
+                type="button"
+                onClick={handleCustomInput}
+                className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left border-t border-slate-700 text-emerald-400 hover:bg-slate-700/50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                <span>Add "{search}" as custom nationality</span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ─── Star Rating Component ───────────────────────────────────────────────
@@ -235,21 +399,6 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
     </div>
   );
 }
-
-// ─── Common Nationalities (for datalist suggestions) ─────────────────────
-
-const NATIONALITIES = [
-  'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
-  'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
-  'Democratic Republic of the Congo', 'Djibouti', 'Egypt', 'Equatorial Guinea',
-  'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon', 'Gambia', 'Ghana', 'Guinea',
-  'Guinea-Bissau', 'Ivory Coast', 'Kenya', 'Lesotho', 'Liberia', 'Libya',
-  'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
-  'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Republic of the Congo',
-  'Rwanda', 'São Tomé and Príncipe', 'Senegal', 'Seychelles', 'Sierra Leone',
-  'Somalia', 'South Africa', 'South Sudan', 'Sudan', 'Tanzania', 'Togo',
-  'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe', 'India', 'Pakistan', 'Bangladesh',
-];
 
 // ─── Image compression helper ────────────────────────────────────────────
 
@@ -1121,26 +1270,13 @@ export function EmployeePage() {
                     />
                   </div>
 
-                  {/* Nationality field with datalist for custom input */}
+                  {/* Nationality field with searchable dropdown */}
                   <div className="space-y-2">
                     <Label className="text-slate-300 text-sm">Nationality</Label>
-                    <div className="relative">
-                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
-                      <Input
-                        list="nationalities-list"
-                        placeholder="Select or type nationality"
-                        value={formData.nationality}
-                        onChange={(e) => handleFormChange('nationality', e.target.value)}
-                        className="pl-10 bg-slate-900 border-slate-600 text-white placeholder:text-slate-500"
-                        autoComplete="off"
-                      />
-                      <datalist id="nationalities-list">
-                        {NATIONALITIES.map((n) => (
-                          <option key={n} value={n} />
-                        ))}
-                      </datalist>
-                    </div>
-                    <p className="text-xs text-slate-500">Type to search or add custom nationality</p>
+                    <SearchableNationalitySelect
+                      value={formData.nationality}
+                      onChange={(val) => handleFormChange('nationality', val)}
+                    />
                   </div>
 
                   <div className="space-y-2">
