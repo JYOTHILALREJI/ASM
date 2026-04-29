@@ -16,11 +16,13 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  notifications    Notification[]
-  deleteRequests  DeleteRequest[] @relation("RequestedBy")
-  reviewedRequests DeleteRequest[] @relation("ReviewedBy")
-  warnings        Warning[]
-  fines           Fine[]
+  notifications         Notification[]
+  leaveRequestsCreated  LeaveRequest[]  @relation("CreatedBy")
+  leaveRequestsReviewed LeaveRequest[]  @relation("ReviewedBy")
+  cancellationRequestsCreated CancellationRequest[] @relation("RequestedBy")
+  cancellationRequestsReviewed CancellationRequest[] @relation("ReviewedBy")
+  warnings              Warning[]
+  fines                 Fine[]
 }
 
 model Employee {
@@ -47,10 +49,11 @@ model Employee {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  attendance     Attendance[]
-  warnings       Warning[]
-  fines          Fine[]
-  deleteRequests DeleteRequest[]
+  attendance         Attendance[]
+  warnings           Warning[]
+  fines              Fine[]
+  leaveRequests      LeaveRequest[]
+  cancellationRequests CancellationRequest[]
 }
 
 model Site {
@@ -95,7 +98,7 @@ model Warning {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdBy User    @relation(fields: [createdById], references: [id])
   createdById String
 }
@@ -108,23 +111,53 @@ model Fine {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   createdBy User    @relation(fields: [createdById], references: [id])
   createdById String
 }
 
-model DeleteRequest {
+// NEW: Leave Request Model
+model LeaveRequest {
   id          String   @id @default(cuid())
   employeeId  String
-  requestedBy String
-  reason      String?
+  leaveType   String   // "casual", "sick", "annual", "emergency", "marriage", "other"
+  startDate   DateTime
+  endDate     DateTime
+  totalDays   Int
+  reason      String
   status      String   @default("pending") // "pending", "approved", "rejected"
-  reviewedBy  String?
-  reviewedAt  DateTime?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  reviewedAt  DateTime?
+  
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  createdBy   User     @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById String
+  reviewedBy  User?    @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedById String?
 
-  employee   Employee  @relation(fields: [employeeId], references: [id])
-  requested  User      @relation("RequestedBy", fields: [requestedBy], references: [id])
-  reviewed   User?     @relation("ReviewedBy", fields: [reviewedBy], references: [id])
+  @@index([employeeId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// NEW: Cancellation Request (employee deletion) – replaces old DeleteRequest
+model CancellationRequest {
+  id          String   @id @default(cuid())
+  employeeId  String
+  reason      String?
+  status      String   @default("pending") // "pending", "approved", "rejected"
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  reviewedAt  DateTime?
+
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  requestedBy User    @relation("RequestedBy", fields: [requestedById], references: [id])
+  requestedById String
+  reviewedBy  User?   @relation("ReviewedBy", fields: [reviewedById], references: [id])
+  reviewedById String?
+
+  @@index([employeeId])
+  @@index([status])
+  @@index([createdAt])
 }
