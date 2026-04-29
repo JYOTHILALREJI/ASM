@@ -5,11 +5,16 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get('status');
+    const employeeId = searchParams.get('employeeId');
 
     const where: Record<string, unknown> = {};
 
     if (status && ['pending', 'approved', 'rejected'].includes(status)) {
       where.status = status;
+    }
+
+    if (employeeId) {
+      where.employeeId = employeeId;
     }
 
     const cancellationRequests = await db.cancellationRequest.findMany({
@@ -20,9 +25,10 @@ export async function GET(request: NextRequest) {
             id: true,
             fullName: true,
             employeeId: true,
-            status: true,
             position: true,
+            phone: true,
             nationality: true,
+            status: true,
           },
         },
         requestedBy: {
@@ -46,9 +52,14 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        deleteRequests: cancellationRequests.map((r) => ({
-          ...r,
-          reason: r.reason || null,
+        cancellationRequests: cancellationRequests.map((r) => ({
+          id: r.id,
+          employeeId: r.employeeId,
+          employee: r.employee,
+          reason: r.reason || '',
+          status: r.status,
+          requestedBy: r.requestedBy,
+          reviewedBy: r.reviewedBy?.name || null,
           reviewedAt: r.reviewedAt?.toISOString() || null,
           createdAt: r.createdAt.toISOString(),
           updatedAt: r.updatedAt.toISOString(),
@@ -67,11 +78,11 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { employeeId, requestedBy, reason } = body;
+    const { employeeId, reason, createdById } = body;
 
-    if (!employeeId || !requestedBy) {
+    if (!employeeId || !createdById) {
       return NextResponse.json(
-        { success: false, error: 'employeeId and requestedBy are required' },
+        { success: false, error: 'employeeId and createdById are required' },
         { status: 400 }
       );
     }
@@ -100,17 +111,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const deleteRequest = await db.$transaction(async (tx) => {
-      const request = await tx.cancellationRequest.create({
+    // Verify requester exists
+    let finalRequestedById = createdById;
+    const requester = await db.user.findUnique({ where: { id: createdById } });
+    if (!requester) {
+      const fallbackUser = await db.user.findFirst({ select: { id: true } });
+      if (fallbackUser) {
+        finalRequestedById = fallbackUser.id;
+      } else {
+        return NextResponse.json(
+          { success: false, error: 'No user found in the system' },
+          { status: 400 }
+        );
+      }
+    }
+
+    const cancellationRequest = await db.$transaction(async (tx) => {
+      const newRequest = await tx.cancellationRequest.create({
         data: {
           employeeId,
-          requestedById: requestedBy,
+          requestedById: finalRequestedById,
           reason: reason || null,
           status: 'pending',
         },
         include: {
           employee: {
-            select: { fullName: true, employeeId: true },
+            select: {
+              id: true,
+              fullName: true,
+              employeeId: true,
+              position: true,
+              phone: true,
+              nationality: true,
+              status: true,
+            },
+          },
+          requestedBy: {
+            select: { id: true, name: true, email: true },
           },
         },
       });
@@ -121,17 +158,41 @@ export async function POST(request: NextRequest) {
         data: { status: 'pending_deletion' },
       });
 
-      return request;
+      // Create notification for super admins
+      const superAdmins = await tx.user.findMany({
+        where: { role: 'super_admin' },
+        select: { id: true },
+      });
+
+      for (const admin of superAdmins) {
+        await tx.notification.create({
+          data: {
+            userId: admin.id,
+            title: 'New Cancellation Request',
+            message: `A cancellation request has been submitted for employee ${newRequest.employee.fullName} (${newRequest.employee.employeeId}).${reason ? ` Reason: ${reason}` : ''}`,
+            type: 'request',
+          },
+        });
+      }
+
+      return newRequest;
     });
 
     return NextResponse.json(
       {
         success: true,
         data: {
-          deleteRequest: {
-            ...deleteRequest,
-            createdAt: deleteRequest.createdAt.toISOString(),
-            updatedAt: deleteRequest.updatedAt.toISOString(),
+          cancellationRequest: {
+            id: cancellationRequest.id,
+            employeeId: cancellationRequest.employeeId,
+            employee: cancellationRequest.employee,
+            reason: cancellationRequest.reason || '',
+            status: cancellationRequest.status,
+            requestedBy: cancellationRequest.requestedBy,
+            reviewedBy: null,
+            reviewedAt: null,
+            createdAt: cancellationRequest.createdAt.toISOString(),
+            updatedAt: cancellationRequest.updatedAt.toISOString(),
           },
         },
       },

@@ -36,16 +36,31 @@ export async function PUT(
 
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Delete request not found' },
+        { success: false, error: 'Cancellation request not found' },
         { status: 404 }
       );
     }
 
     if (existing.status !== 'pending') {
       return NextResponse.json(
-        { success: false, error: `Delete request is already ${existing.status}` },
+        { success: false, error: `Cancellation request is already ${existing.status}` },
         { status: 400 }
       );
+    }
+
+    // Verify reviewer exists — if not, look up first available user as fallback
+    let finalReviewedById = reviewedBy;
+    const reviewer = await db.user.findUnique({ where: { id: reviewedBy } });
+    if (!reviewer) {
+      const fallbackUser = await db.user.findFirst({ select: { id: true } });
+      if (fallbackUser) {
+        finalReviewedById = fallbackUser.id;
+      } else {
+        return NextResponse.json(
+          { success: false, error: 'No user found in the system' },
+          { status: 400 }
+        );
+      }
     }
 
     const result = await db.$transaction(async (tx) => {
@@ -54,12 +69,26 @@ export async function PUT(
         where: { id },
         data: {
           status,
-          reviewedById: reviewedBy,
+          reviewedById: finalReviewedById,
           reviewedAt: new Date(),
         },
         include: {
           employee: {
-            select: { id: true, fullName: true, employeeId: true },
+            select: {
+              id: true,
+              fullName: true,
+              employeeId: true,
+              position: true,
+              phone: true,
+              nationality: true,
+              status: true,
+            },
+          },
+          requestedBy: {
+            select: { id: true, name: true, email: true },
+          },
+          reviewedBy: {
+            select: { id: true, name: true, email: true },
           },
         },
       });
@@ -78,14 +107,30 @@ export async function PUT(
         });
       }
 
+      // Notify the requester about the review result
+      await tx.notification.create({
+        data: {
+          userId: updatedRequest.requestedById,
+          title: `Cancellation Request ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+          message: `The cancellation request for employee ${updatedRequest.employee.fullName} (${updatedRequest.employee.employeeId}) has been ${status}.`,
+          type: 'request',
+        },
+      });
+
       return updatedRequest;
     });
 
     return NextResponse.json({
       success: true,
       data: {
-        deleteRequest: {
-          ...result,
+        cancellationRequest: {
+          id: result.id,
+          employeeId: result.employeeId,
+          employee: result.employee,
+          reason: result.reason || '',
+          status: result.status,
+          requestedBy: result.requestedBy,
+          reviewedBy: result.reviewedBy?.name || null,
           reviewedAt: result.reviewedAt?.toISOString() || null,
           createdAt: result.createdAt.toISOString(),
           updatedAt: result.updatedAt.toISOString(),

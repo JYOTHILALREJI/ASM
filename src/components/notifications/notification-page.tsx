@@ -1,29 +1,23 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Bell,
   FileText,
   AlertTriangle,
   DollarSign,
   CheckCheck,
-  ExternalLink,
   Clock,
-  User,
-  MessageSquare,
-  Inbox,
   CheckCircle2,
   XCircle,
   HourglassIcon,
   Plus,
-  Download,
   Search as SearchIcon,
   Loader2,
   CalendarDays,
   Ban,
   Printer,
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -829,8 +823,8 @@ function LeaveRequestsTab({ userId, isSuperAdmin }: { userId: string; isSuperAdm
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <div><Label>Start Date</Label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-900" /></div>
-              <div><Label>End Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-900" /></div>
+              <div><Label>Start Date</Label><Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="bg-slate-900 border-slate-700 text-white" /></div>
+              <div><Label>End Date</Label><Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="bg-slate-900 border-slate-700 text-white" /></div>
             </div>
             {totalDays > 0 && <p className="text-xs text-slate-400">Total days: {totalDays}</p>}
             <div><Label>Reason</Label><Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Detailed reason for leave" className="bg-slate-900 border-slate-700 text-white resize-none" /></div>
@@ -936,11 +930,11 @@ function CancellationRequestsTab({ userId, isSuperAdmin }: { userId: string; isS
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap gap-2">
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-32 bg-slate-800 border-slate-700"><SelectValue /></SelectTrigger>
-            <SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="rejected">Rejected</SelectItem></SelectContent>
+            <SelectTrigger className="w-32 bg-slate-800 border-slate-700 text-sm text-white"><SelectValue /></SelectTrigger>
+            <SelectContent className="bg-slate-800 border-slate-600"><SelectItem value="all">All</SelectItem><SelectItem value="pending">Pending</SelectItem><SelectItem value="approved">Approved</SelectItem><SelectItem value="rejected">Rejected</SelectItem></SelectContent>
           </Select>
-          <Select value={yearFilter} onValueChange={setYearFilter}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger><SelectContent>{YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
-          <Select value={monthFilter} onValueChange={setMonthFilter}><SelectTrigger className="w-28"><SelectValue /></SelectTrigger><SelectContent>{MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
+          <Select value={yearFilter} onValueChange={setYearFilter}><SelectTrigger className="w-28 bg-slate-800 border-slate-700 text-sm text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-slate-800 border-slate-600">{YEARS.map(y => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent></Select>
+          <Select value={monthFilter} onValueChange={setMonthFilter}><SelectTrigger className="w-28 bg-slate-800 border-slate-700 text-sm text-white"><SelectValue /></SelectTrigger><SelectContent className="bg-slate-800 border-slate-600">{MONTHS.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent></Select>
         </div>
         <Button size="sm" onClick={openCreateDialog} className="h-8 bg-red-600 hover:bg-red-700 text-white text-xs gap-1.5"><Plus className="h-3.5 w-3.5" /> New Cancellation Request</Button>
       </div>
@@ -971,21 +965,115 @@ function CancellationRequestsTab({ userId, isSuperAdmin }: { userId: string; isS
             <div><Label>Employee</Label>{employeesLoading ? <div className="text-slate-400">Loading...</div> : <EmployeeSearchCombobox employees={employees} onSelect={setSelectedEmployee} selectedId={selectedEmployee?.id || null} />}</div>
             <div><Label>Reason</Label><Textarea value={reason} onChange={e => setReason(e.target.value)} placeholder="Reason for cancellation" className="bg-slate-900 border-slate-700 text-white resize-none" /></div>
           </div>
-          <DialogFooter><Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button><Button onClick={handleCreate} disabled={submitting || !selectedEmployee || !reason.trim()} className="bg-red-600">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setCreateDialogOpen(false)} className="border-slate-600">Cancel</Button><Button onClick={handleCreate} disabled={submitting || !selectedEmployee || !reason.trim()} className="bg-red-600 hover:bg-red-700">{submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Submit'}</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
 
-/* ───────── Warnings Tab (unchanged, but keep) ───────── */
+/* ───────── Warnings Tab ───────── */
 function WarningsTab({ userId }: { userId: string }) {
-  return <div className="text-white">Warnings</div>;
+  const [warnings, setWarnings] = useState<Warning[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchWarnings = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/warnings');
+      const data = await res.json();
+      if (data.success) {
+        setWarnings(data.data.warnings || []);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to fetch warnings', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchWarnings(); }, [fetchWarnings]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {loading ? <SkeletonCards /> : warnings.length === 0 ? <EmptyState icon={AlertTriangle} message="No warnings found" /> : (
+        warnings.map(w => (
+          <div key={w.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4 hover:bg-slate-700/50 transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white truncate">{w.employee.fullName}</span>
+                  <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 border-slate-600 text-slate-400">{w.employee.employeeId}</Badge>
+                  {w.isAutoGenerated && <Badge className="text-xs px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30">Auto</Badge>}
+                  <Badge className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-400 border border-orange-500/30"><AlertTriangle className="h-3 w-3 mr-1" />Warning</Badge>
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <div><span className="text-slate-500">Reason:</span> {w.reason}</div>
+                  {w.absentDates && <div><span className="text-slate-500">Absent dates:</span> {w.absentDates}</div>}
+                  <div><span className="text-slate-500">Issued by:</span> {w.createdBy.name}</div>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatDate(w.createdAt)}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }
 
-/* ───────── Fines Tab (unchanged) ───────── */
+/* ───────── Fines Tab ───────── */
 function FinesTab({ userId }: { userId: string }) {
-  return <div className="text-white">Fines</div>;
+  const [fines, setFines] = useState<Fine[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchFines = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/fines');
+      const data = await res.json();
+      if (data.success) {
+        setFines(data.data.fines || []);
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to fetch fines', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchFines(); }, [fetchFines]);
+
+  return (
+    <div className="flex flex-col gap-3">
+      {loading ? <SkeletonCards /> : fines.length === 0 ? <EmptyState icon={DollarSign} message="No fines found" /> : (
+        fines.map(f => (
+          <div key={f.id} className="bg-slate-800 rounded-xl border border-slate-700 p-4 hover:bg-slate-700/50 transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  <span className="text-sm font-semibold text-white truncate">{f.employee.fullName}</span>
+                  <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 border-slate-600 text-slate-400">{f.employee.employeeId}</Badge>
+                  <Badge className="text-xs px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30"><DollarSign className="h-3 w-3 mr-1" />{formatCurrency(f.amount)}</Badge>
+                </div>
+                <div className="text-xs text-slate-300 space-y-1">
+                  <div><span className="text-slate-500">Reason:</span> {f.reason}</div>
+                  <div><span className="text-slate-500">Issued by:</span> {f.createdBy.name}</div>
+                </div>
+                <div className="mt-2 text-[11px] text-slate-500 flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  {formatDate(f.createdAt)}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))
+      )}
+    </div>
+  );
 }
 
 /* ───────── Main Page ───────── */

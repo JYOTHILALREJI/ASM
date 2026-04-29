@@ -35,17 +35,17 @@ export async function POST(
 
     if (employee.status === 'pending_deletion') {
       return NextResponse.json(
-        { success: false, error: 'Employee already has a pending delete request' },
+        { success: false, error: 'Employee already has a pending cancellation request' },
         { status: 400 }
       );
     }
 
-    // Create delete request and update employee status in a transaction
+    // Create cancellation request and update employee status in a transaction
     const deleteRequest = await db.$transaction(async (tx) => {
-      const request = await tx.deleteRequest.create({
+      const request = await tx.cancellationRequest.create({
         data: {
           employeeId: id,
-          requestedBy,
+          requestedById: requestedBy,
           reason: reason || null,
           status: 'pending',
         },
@@ -61,6 +61,23 @@ export async function POST(
         where: { id },
         data: { status: 'pending_deletion' },
       });
+
+      // Create notification for super admins
+      const superAdmins = await tx.user.findMany({
+        where: { role: 'super_admin' },
+        select: { id: true },
+      });
+
+      for (const admin of superAdmins) {
+        await tx.notification.create({
+          data: {
+            userId: admin.id,
+            title: 'New Cancellation Request',
+            message: `A cancellation request has been submitted for employee ${request.employee.fullName} (${request.employee.employeeId}).${reason ? ` Reason: ${reason}` : ''}`,
+            type: 'request',
+          },
+        });
+      }
 
       return request;
     });

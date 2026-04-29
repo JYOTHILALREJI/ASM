@@ -13,6 +13,8 @@ import { AttendancePage } from '@/components/attendance/attendance-page';
 import { NotificationPage } from '@/components/notifications/notification-page';
 import { AdminPage } from '@/components/admins/admin-page';
 import { SitesPage } from '@/components/sites/sites-page';
+import { LeaveRequestPage } from '@/components/leave-requests/leave-request-page';
+import { CancellationRequestPage } from '@/components/cancellation-requests/cancellation-request-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -59,6 +61,10 @@ function MainLayout() {
         return <SitesPage />;
       case 'attendance':
         return <AttendancePage />;
+      case 'leave_requests':
+        return <LeaveRequestPage />;
+      case 'cancellation_requests':
+        return <CancellationRequestPage />;
       case 'notifications':
         return <NotificationPage />;
       case 'admins':
