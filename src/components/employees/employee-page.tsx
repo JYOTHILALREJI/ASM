@@ -236,9 +236,22 @@ function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   );
 }
 
-// ─── Common Nationalities ────────────────────────────────────────────────
+// ─── Common Nationalities (for datalist suggestions) ─────────────────────
 
-// ─── Image compression helper ───────────────────────────────────────
+const NATIONALITIES = [
+  'Algeria', 'Angola', 'Benin', 'Botswana', 'Burkina Faso', 'Burundi',
+  'Cabo Verde', 'Cameroon', 'Central African Republic', 'Chad', 'Comoros',
+  'Democratic Republic of the Congo', 'Djibouti', 'Egypt', 'Equatorial Guinea',
+  'Eritrea', 'Eswatini', 'Ethiopia', 'Gabon', 'Gambia', 'Ghana', 'Guinea',
+  'Guinea-Bissau', 'Ivory Coast', 'Kenya', 'Lesotho', 'Liberia', 'Libya',
+  'Madagascar', 'Malawi', 'Mali', 'Mauritania', 'Mauritius', 'Morocco',
+  'Mozambique', 'Namibia', 'Niger', 'Nigeria', 'Republic of the Congo',
+  'Rwanda', 'São Tomé and Príncipe', 'Senegal', 'Seychelles', 'Sierra Leone',
+  'Somalia', 'South Africa', 'South Sudan', 'Sudan', 'Tanzania', 'Togo',
+  'Tunisia', 'Uganda', 'Zambia', 'Zimbabwe', 'India', 'Pakistan', 'Bangladesh',
+];
+
+// ─── Image compression helper ────────────────────────────────────────────
 
 function compressImage(file: File, maxWidth = 300, quality = 0.8): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -267,14 +280,6 @@ function compressImage(file: File, maxWidth = 300, quality = 0.8): Promise<strin
     reader.readAsDataURL(file);
   });
 }
-
-const NATIONALITIES = [
-  'Saudi Arabian', 'Indian', 'Pakistani', 'Bangladeshi', 'Filipino',
-  'Egyptian', 'Sudanese', 'Yemeni', 'Syrian', 'Jordanian',
-  'Indonesian', 'Nepalese', 'Sri Lankan', 'Ethiopian', 'Kenyan',
-  'Moroccan', 'Tunisian', 'Algerian', 'Iraqi', 'Lebanese',
-  'Palestinian', 'Somali', 'Afghan', 'Myanmar', 'Ugandan',
-];
 
 // ─── Main Component ──────────────────────────────────────────────────────
 
@@ -1116,18 +1121,26 @@ export function EmployeePage() {
                     />
                   </div>
 
+                  {/* Nationality field with datalist for custom input */}
                   <div className="space-y-2">
                     <Label className="text-slate-300 text-sm">Nationality</Label>
-                    <Select value={formData.nationality} onValueChange={(v) => handleFormChange('nationality', v)}>
-                      <SelectTrigger className="bg-slate-900 border-slate-600 text-white w-full">
-                        <SelectValue placeholder="Select nationality" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-slate-800 border-slate-700 max-h-60">
+                    <div className="relative">
+                      <Globe className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+                      <Input
+                        list="nationalities-list"
+                        placeholder="Select or type nationality"
+                        value={formData.nationality}
+                        onChange={(e) => handleFormChange('nationality', e.target.value)}
+                        className="pl-10 bg-slate-900 border-slate-600 text-white placeholder:text-slate-500"
+                        autoComplete="off"
+                      />
+                      <datalist id="nationalities-list">
                         {NATIONALITIES.map((n) => (
-                          <SelectItem key={n} value={n}>{n}</SelectItem>
+                          <option key={n} value={n} />
                         ))}
-                      </SelectContent>
-                    </Select>
+                      </datalist>
+                    </div>
+                    <p className="text-xs text-slate-500">Type to search or add custom nationality</p>
                   </div>
 
                   <div className="space-y-2">

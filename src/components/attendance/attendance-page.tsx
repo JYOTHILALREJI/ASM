@@ -516,31 +516,25 @@ function ListView({
                             recent && 'bg-emerald-500/5'
                           )}
                         >
-                          {!isFri ? (
-                            <button
-                              onClick={(e) => {
-                                const rect = e.currentTarget.getBoundingClientRect();
-                                setDropdown({
-                                  employeeId: emp.id,
-                                  date: dateStr,
-                                  status,
-                                  overtimeHours: record?.overtimeHours || null,
-                                  position: { top: rect.top, left: rect.left },
-                                });
-                              }}
-                              className={cn(
-                                'h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all hover:ring-2 hover:ring-slate-500/50',
-                                cfg.color
-                              )}
-                              title={`${cfg.label}${status === 'overtime' && record?.overtimeHours ? ` (${record.overtimeHours}h)` : ''}`}
-                            >
-                              {cfg.short}
-                            </button>
-                          ) : (
-                            <span className="h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-medium bg-red-500/10 text-red-400/40">
-                              F
-                            </span>
-                          )}
+                          <button
+                            onClick={(e) => {
+                              const rect = e.currentTarget.getBoundingClientRect();
+                              setDropdown({
+                                employeeId: emp.id,
+                                date: dateStr,
+                                status,
+                                overtimeHours: record?.overtimeHours || null,
+                                position: { top: rect.top, left: rect.left },
+                              });
+                            }}
+                            className={cn(
+                              'h-6 w-6 rounded-full flex items-center justify-center text-[10px] font-bold transition-all hover:ring-2 hover:ring-slate-500/50',
+                              cfg.color
+                            )}
+                            title={`${cfg.label}${status === 'overtime' && record?.overtimeHours ? ` (${record.overtimeHours}h)` : ''}`}
+                          >
+                            {cfg.short}
+                          </button>
                         </div>
                       );
                     })}
@@ -698,7 +692,7 @@ function CalendarView({
               <div className="flex flex-wrap gap-2 sm:ml-auto">
                 {STATUS_OPTIONS.map((s) => {
                   const count = Array.from({ length: daysInMonth }, (_, i) => i + 1).filter(
-                    (d) => !isFriday(year, month, d) && !isFutureDate(d, month, year) && getStatusForDay(d) === s
+                    (d) => !isFutureDate(d, month, year) && getStatusForDay(d) === s
                   ).length;
                   const cfg = STATUS_CONFIG[s];
                   return (
@@ -763,7 +757,7 @@ function CalendarView({
                       )}>
                         {day}
                       </span>
-                      {!isFut && !isFri && (
+                      {!isFut && (
                         <button
                           onClick={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
