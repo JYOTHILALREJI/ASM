@@ -19,7 +19,6 @@ export async function GET(request: NextRequest) {
         { employeeName: { contains: search, mode: 'insensitive' } },
         { documentNumber: { contains: search, mode: 'insensitive' } },
         { siteName: { contains: search, mode: 'insensitive' } },
-        { teamLeaderName: { contains: search, mode: 'insensitive' } },
         {
           employee: {
             employeeId: { contains: search, mode: 'insensitive' },
