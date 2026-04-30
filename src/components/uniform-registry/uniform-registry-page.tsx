@@ -399,6 +399,194 @@ function SiteCombobox({
   );
 }
 
+/* ───────── Searchable Team Leader Dropdown ───────── */
+
+function TeamLeaderCombobox({
+  siteEmployees,
+  currentTeamLeader,
+  isChangingTeamLeader,
+  selectedSite,
+  teamLeaderLoading,
+  isSettingTeamLeader,
+  onSelectEmployee,
+  onChangeLeaderClick,
+}: {
+  siteEmployees: Employee[];
+  currentTeamLeader: Employee | null;
+  isChangingTeamLeader: boolean;
+  selectedSite: Site | null;
+  teamLeaderLoading: boolean;
+  isSettingTeamLeader: boolean;
+  onSelectEmployee: (emp: Employee) => void;
+  onChangeLeaderClick: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('');
+
+  const filtered = useMemo(() => {
+    if (!filter) return siteEmployees;
+    const q = filter.toLowerCase();
+    return siteEmployees.filter(
+      (e) =>
+        e.fullName.toLowerCase().includes(q) ||
+        e.employeeId.toLowerCase().includes(q)
+    );
+  }, [siteEmployees, filter]);
+
+  // No site selected
+  if (!selectedSite) {
+    return (
+      <Button
+        variant="outline"
+        disabled
+        className="w-full justify-start bg-slate-900 border-slate-600 text-slate-500 font-normal"
+      >
+        <Shield className="h-4 w-4 mr-2 text-slate-500" />
+        Select a site first...
+      </Button>
+    );
+  }
+
+  // Loading
+  if (teamLeaderLoading || isSettingTeamLeader) {
+    return (
+      <Button
+        variant="outline"
+        disabled
+        className="w-full justify-start bg-slate-900 border-slate-600 text-white font-normal"
+      >
+        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        {isSettingTeamLeader ? 'Setting team leader...' : 'Loading...'}
+      </Button>
+    );
+  }
+
+  // If team leader exists and we're NOT in change mode, show leader + "Change" option
+  if (currentTeamLeader && !isChangingTeamLeader) {
+    return (
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            className="w-full justify-start bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white font-normal"
+          >
+            <Shield className="h-4 w-4 mr-2 text-blue-400" />
+            <span className="truncate">
+              {currentTeamLeader.fullName}{' '}
+              <span className="text-slate-500 text-xs">({currentTeamLeader.employeeId})</span>
+            </span>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0 bg-slate-800 border-slate-600" align="start">
+          <Command className="bg-slate-800">
+            <CommandList className="max-h-64">
+              <CommandGroup>
+                {/* Current team leader */}
+                <CommandItem
+                  value={currentTeamLeader.fullName}
+                  className="text-slate-200 data-[selected=true]:bg-slate-700 data-[selected=true]:text-white py-2.5"
+                >
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-3.5 w-3.5 text-blue-400" />
+                      <span className="text-sm truncate">{currentTeamLeader.fullName}</span>
+                      <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px] px-1.5 py-0 shrink-0">
+                        Leader
+                      </Badge>
+                    </div>
+                    <span className="text-[11px] text-slate-500 ml-5.5">
+                      {currentTeamLeader.employeeId}
+                    </span>
+                  </div>
+                </CommandItem>
+
+                <Separator className="bg-slate-700/50 my-1" />
+
+                {/* Change team leader option */}
+                <CommandItem
+                  value="change-team-leader"
+                  onSelect={() => {
+                    onChangeLeaderClick();
+                    setOpen(false);
+                  }}
+                  className="text-amber-400 data-[selected=true]:bg-amber-500/10 data-[selected=true]:text-amber-300 py-2.5"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
+                  <span className="text-sm">Change Team Leader...</span>
+                </CommandItem>
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  // No team leader OR in change mode → show all site employees
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          className="w-full justify-start bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white font-normal"
+        >
+          <Shield className="h-4 w-4 mr-2 text-slate-400" />
+          {isChangingTeamLeader ? (
+            <span className="text-amber-400">Select new team leader...</span>
+          ) : (
+            <span className="text-slate-500">Select team leader...</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0 bg-slate-800 border-slate-600" align="start">
+        <Command className="bg-slate-800">
+          <CommandInput
+            placeholder="Search by name or ID..."
+            value={filter}
+            onValueChange={setFilter}
+            className="text-white"
+          />
+          <CommandList className="max-h-64">
+            <CommandEmpty className="text-slate-400 py-4 text-center text-sm">
+              No employees found for this site.
+            </CommandEmpty>
+            <CommandGroup>
+              {filtered.map((emp) => (
+                <CommandItem
+                  key={emp.id}
+                  value={`${emp.fullName} ${emp.employeeId}`}
+                  onSelect={() => {
+                    onSelectEmployee(emp);
+                    setOpen(false);
+                    setFilter('');
+                  }}
+                  className="text-slate-200 data-[selected=true]:bg-slate-700 data-[selected=true]:text-white py-2.5"
+                >
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm truncate">{emp.fullName}</span>
+                      {emp.isTeamLeader && (
+                        <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30 text-[10px] px-1.5 py-0 shrink-0">
+                          <Shield className="h-2.5 w-2.5 mr-0.5" />
+                          Leader
+                        </Badge>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-500">
+                      {emp.employeeId}
+                      {emp.position ? ` · ${emp.position}` : ''}
+                    </span>
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* ───────── Renewal Status Badge ───────── */
 
 function RenewalStatusBadge({ renewalDate }: { renewalDate: string }) {
@@ -495,6 +683,11 @@ export function UniformRegistryPage() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [teamLeaderName, setTeamLeaderName] = useState<string | null>(null);
   const [teamLeaderLoading, setTeamLeaderLoading] = useState(false);
+  const [currentTeamLeader, setCurrentTeamLeader] = useState<Employee | null>(null);
+  const [siteEmployees, setSiteEmployees] = useState<Employee[]>([]);
+  const [isChangingTeamLeader, setIsChangingTeamLeader] = useState(false);
+  const [changeLeaderConfirmOpen, setChangeLeaderConfirmOpen] = useState(false);
+  const [isSettingTeamLeader, setIsSettingTeamLeader] = useState(false);
 
   // Employee/site data for dropdowns
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -513,14 +706,6 @@ export function UniformRegistryPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<UniformEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Team leader confirmation dialog
-  const [teamLeaderConfirmOpen, setTeamLeaderConfirmOpen] = useState(false);
-  const [pendingTeamLeaderData, setPendingTeamLeaderData] = useState<{
-    employee: Employee;
-    site: Site;
-  } | null>(null);
-  const [isSettingTeamLeader, setIsSettingTeamLeader] = useState(false);
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -582,11 +767,14 @@ export function UniformRegistryPage() {
   const findTeamLeaderForSite = useCallback(async (siteId: string) => {
     setTeamLeaderLoading(true);
     setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setIsChangingTeamLeader(false);
     try {
       // Find the site name from the sites list
       const site = sites.find((s) => s.id === siteId);
       if (!site) {
         setTeamLeaderName(null);
+        setSiteEmployees([]);
         return null;
       }
 
@@ -594,20 +782,32 @@ export function UniformRegistryPage() {
       const res = await fetch(`/api/employees?limit=1000&status=active`);
       const json = await res.json();
       if (json.success) {
-        const leader = (json.data.employees || []).find(
+        const allEmps: Employee[] = json.data.employees || [];
+        // Filter employees of this site
+        const siteEmps = allEmps.filter(
+          (e: Employee) => e.currentSite === site.name && e.status === 'active'
+        );
+        setSiteEmployees(siteEmps);
+
+        const leader = allEmps.find(
           (e: Employee) => e.isTeamLeader && e.teamLeaderSiteId === siteId
         );
         if (leader) {
           setTeamLeaderName(leader.fullName);
+          setCurrentTeamLeader(leader);
           return leader;
         } else {
           setTeamLeaderName(null);
+          setCurrentTeamLeader(null);
           return null;
         }
       }
+      setSiteEmployees([]);
       return null;
     } catch {
       setTeamLeaderName(null);
+      setCurrentTeamLeader(null);
+      setSiteEmployees([]);
       return null;
     } finally {
       setTeamLeaderLoading(false);
@@ -650,6 +850,9 @@ export function UniformRegistryPage() {
     setItems({ ...DEFAULT_ITEMS });
     setSelectedSite(null);
     setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
     setIsRenewal(false);
     setPreviousTokenId(null);
     setCreateDialogOpen(true);
@@ -679,6 +882,9 @@ export function UniformRegistryPage() {
     setItems(parsedItems);
     setIsRenewal(true);
     setPreviousTokenId(entry.id);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
 
     // Try to find the site from the sites list
     const site = sites.find((s) => s.name === entry.siteName) || null;
@@ -718,8 +924,97 @@ export function UniformRegistryPage() {
   /* ── Handle Site Selection ── */
   const handleSiteSelect = useCallback(async (site: Site) => {
     setSelectedSite(site);
+    setIsChangingTeamLeader(false);
     await findTeamLeaderForSite(site.id);
   }, [findTeamLeaderForSite]);
+
+  /* ── Handle Team Leader Selection ── */
+  const handleTeamLeaderSelect = useCallback(async (emp: Employee) => {
+    if (!selectedSite) return;
+
+    setIsSettingTeamLeader(true);
+    try {
+      // If there's an existing team leader for this site, remove their leader status first
+      if (currentTeamLeader && currentTeamLeader.id !== emp.id) {
+        const removeRes = await fetch(`/api/employees/${currentTeamLeader.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isTeamLeader: false,
+            teamLeaderSiteId: null,
+          }),
+        });
+        if (!removeRes.ok) {
+          const removeJson = await removeRes.json();
+          toast({
+            title: 'Error',
+            description: removeJson.error || 'Failed to remove previous team leader',
+            variant: 'destructive',
+          });
+          setIsSettingTeamLeader(false);
+          return;
+        }
+      }
+
+      // Set the new team leader
+      const tlRes = await fetch(`/api/employees/${emp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isTeamLeader: true,
+          teamLeaderSiteId: selectedSite.id,
+        }),
+      });
+      const tlJson = await tlRes.json();
+      if (!tlJson.success) {
+        toast({
+          title: 'Team Leader Error',
+          description: tlJson.error || 'Failed to set team leader',
+          variant: 'destructive',
+        });
+        setIsSettingTeamLeader(false);
+        return;
+      }
+
+      // Update local state
+      setTeamLeaderName(emp.fullName);
+      setCurrentTeamLeader(emp);
+      setIsChangingTeamLeader(false);
+
+      // Update the employees list to reflect team leader changes
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id === emp.id) {
+            return { ...e, isTeamLeader: true, teamLeaderSiteId: selectedSite.id };
+          }
+          if (currentTeamLeader && e.id === currentTeamLeader.id) {
+            return { ...e, isTeamLeader: false, teamLeaderSiteId: null };
+          }
+          return e;
+        })
+      );
+      setSiteEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id === emp.id) {
+            return { ...e, isTeamLeader: true, teamLeaderSiteId: selectedSite.id };
+          }
+          if (currentTeamLeader && e.id === currentTeamLeader.id) {
+            return { ...e, isTeamLeader: false, teamLeaderSiteId: null };
+          }
+          return e;
+        })
+      );
+
+      toast({
+        title: 'Team Leader Set',
+        description: `${emp.fullName} has been set as team leader of ${selectedSite.name}.`,
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to set team leader', variant: 'destructive' });
+    } finally {
+      setIsSettingTeamLeader(false);
+    }
+  }, [selectedSite, currentTeamLeader]);
 
   /* ── Handle Create Entry ── */
   const handleCreateEntry = useCallback(async () => {
@@ -742,18 +1037,7 @@ export function UniformRegistryPage() {
       return;
     }
 
-    // Check if team leader confirmation is needed
-    if (selectedSite && !teamLeaderName) {
-      // Check if this employee is already a team leader of this site
-      if (!selectedEmployee.isTeamLeader || selectedEmployee.teamLeaderSiteId !== selectedSite.id) {
-        // Show team leader confirmation popup
-        setPendingTeamLeaderData({ employee: selectedEmployee, site: selectedSite });
-        setTeamLeaderConfirmOpen(true);
-        return;
-      }
-    }
-
-    // Proceed with creation
+    // Proceed with creation (team leader is already set via the dropdown)
     await doCreateEntry(false);
   }, [selectedEmployee, documentType, documentNumber, items, selectedSite, teamLeaderName]);
 
@@ -835,6 +1119,9 @@ export function UniformRegistryPage() {
     setItems({ ...DEFAULT_ITEMS });
     setSelectedSite(null);
     setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
     setIsRenewal(false);
     setPreviousTokenId(null);
   }, []);
@@ -1411,18 +1698,27 @@ export function UniformRegistryPage() {
             {/* Team Leader */}
             <div className="space-y-2">
               <Label className="text-slate-300 text-sm">Team Leader</Label>
-              <div className="flex items-center gap-2 h-10 px-3 rounded-lg border border-slate-700 bg-slate-900/50">
-                {teamLeaderLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                ) : teamLeaderName ? (
-                  <>
-                    <Shield className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm text-white">{teamLeaderName}</span>
-                  </>
-                ) : (
-                  <span className="text-sm text-slate-500">No team leader assigned</span>
-                )}
-              </div>
+              <TeamLeaderCombobox
+                siteEmployees={siteEmployees}
+                currentTeamLeader={currentTeamLeader}
+                isChangingTeamLeader={isChangingTeamLeader}
+                selectedSite={selectedSite}
+                teamLeaderLoading={teamLeaderLoading}
+                isSettingTeamLeader={isSettingTeamLeader}
+                onSelectEmployee={handleTeamLeaderSelect}
+                onChangeLeaderClick={() => setChangeLeaderConfirmOpen(true)}
+              />
+              {selectedSite && !currentTeamLeader && siteEmployees.length > 0 && !teamLeaderLoading && (
+                <p className="text-xs text-amber-400/80 flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  No team leader set for this site. Select one above.
+                </p>
+              )}
+              {selectedSite && siteEmployees.length === 0 && !teamLeaderLoading && (
+                <p className="text-xs text-slate-500">
+                  No active employees found at this site.
+                </p>
+              )}
             </div>
 
             {/* Renewal info (if renewing) */}
@@ -1467,34 +1763,33 @@ export function UniformRegistryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ──────── Team Leader Confirmation Dialog ──────── */}
-      <AlertDialog open={teamLeaderConfirmOpen} onOpenChange={setTeamLeaderConfirmOpen}>
+      {/* ──────── Change Team Leader Confirmation Dialog ──────── */}
+      <AlertDialog open={changeLeaderConfirmOpen} onOpenChange={setChangeLeaderConfirmOpen}>
         <AlertDialogContent className="bg-slate-800 border-slate-700 text-slate-200">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-400" />
-              Set Team Leader?
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              Change Team Leader?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Would you like to set{' '}
-              <span className="text-white font-semibold">{pendingTeamLeaderData?.employee.fullName}</span>{' '}
-              as the team leader of{' '}
-              <span className="text-white font-semibold">{pendingTeamLeaderData?.site.name}</span>?
-              This site currently has no team leader assigned.
+              The current team leader of{' '}
+              <span className="text-white font-semibold">{selectedSite?.name}</span> is{' '}
+              <span className="text-white font-semibold">{currentTeamLeader?.fullName}</span>.
+              Are you sure you want to change the team leader? You will be able to select a new team leader from the employees of this site.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">
-              No, skip
+              Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setTeamLeaderConfirmOpen(false);
-                doCreateEntry(true);
+                setChangeLeaderConfirmOpen(false);
+                setIsChangingTeamLeader(true);
               }}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
             >
-              Yes, set as leader
+              Yes, change leader
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
