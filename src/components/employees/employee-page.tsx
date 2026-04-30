@@ -1011,10 +1011,7 @@ export function EmployeePage() {
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-sm font-medium text-white">{emp.fullName}</p>
                               {emp.isTeamLeader && (
-                                <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0">
-                                  <Crown className="h-2.5 w-2.5 mr-0.5" />
-                                  Team Leader
-                                </Badge>
+                                <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                               )}
                             </div>
                             {emp.nationality && (
@@ -1107,10 +1104,7 @@ export function EmployeePage() {
                         <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-sm font-medium text-white">{emp.fullName}</p>
                           {emp.isTeamLeader && (
-                            <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0">
-                              <Crown className="h-2.5 w-2.5 mr-0.5" />
-                              Team Leader
-                            </Badge>
+                            <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                           )}
                         </div>
                         <p className="text-xs text-slate-500 font-mono">{emp.employeeId}</p>

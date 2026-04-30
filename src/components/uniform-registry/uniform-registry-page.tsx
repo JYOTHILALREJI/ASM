@@ -22,6 +22,7 @@ import {
   Calendar,
   Check,
   RotateCcw,
+  Crown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -399,6 +400,126 @@ function SiteCombobox({
   );
 }
 
+/* ───────── Team Leader Searchable Dropdown ───────── */
+
+function TeamLeaderCombobox({
+  employees,
+  currentTeamLeader,
+  onSelect,
+  onChangeLeader,
+  isChanging,
+  loading,
+  disabled,
+}: {
+  employees: Employee[];
+  currentTeamLeader: Employee | null;
+  onSelect: (emp: Employee) => void;
+  onChangeLeader: () => void;
+  isChanging: boolean;
+  loading: boolean;
+  disabled: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [filter, setFilter] = useState('');
+
+  const filtered = useMemo(() => {
+    if (currentTeamLeader && !isChanging) return [];
+    if (!filter) return employees;
+    const q = filter.toLowerCase();
+    return employees.filter(
+      (e) =>
+        e.fullName.toLowerCase().includes(q) ||
+        e.employeeId.toLowerCase().includes(q)
+    );
+  }, [employees, filter, currentTeamLeader, isChanging]);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          disabled={loading || disabled}
+          className="w-full justify-start bg-slate-900 border-slate-600 text-white hover:bg-slate-800 hover:text-white font-normal h-10"
+        >
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+          ) : (
+            <Crown className="h-4 w-4 mr-2 text-amber-400" />
+          )}
+          {currentTeamLeader && !isChanging ? (
+            <span className="truncate">{currentTeamLeader.fullName}</span>
+          ) : (
+            <span className="text-slate-500">Select team leader...</span>
+          )}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-80 p-0 bg-slate-800 border-slate-600" align="start">
+        <Command className="bg-slate-800">
+          <CommandInput
+            placeholder="Search employees..."
+            value={filter}
+            onValueChange={setFilter}
+            className="text-white"
+          />
+          <CommandList className="max-h-64">
+            <CommandEmpty className="text-slate-400 py-4 text-center text-sm">
+              No employees found.
+            </CommandEmpty>
+            {currentTeamLeader && !isChanging ? (
+              <CommandGroup>
+                <CommandItem
+                  value={currentTeamLeader.fullName}
+                  onSelect={() => setOpen(false)}
+                  className="text-slate-200 data-[selected=true]:bg-slate-700 data-[selected=true]:text-white py-2.5"
+                >
+                  <Crown className="h-4 w-4 mr-2 text-amber-400" />
+                  <span className="text-sm truncate">{currentTeamLeader.fullName} (Current)</span>
+                </CommandItem>
+                <CommandItem
+                  value="change-team-leader"
+                  onSelect={() => {
+                    onChangeLeader();
+                    setOpen(false);
+                  }}
+                  className="text-amber-400 data-[selected=true]:bg-amber-500/10 data-[selected=true]:text-amber-300 py-2.5 font-medium"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Change Team Leader
+                </CommandItem>
+              </CommandGroup>
+            ) : (
+              <CommandGroup>
+                {filtered.map((emp) => (
+                  <CommandItem
+                    key={emp.id}
+                    value={`${emp.fullName} ${emp.employeeId}`}
+                    onSelect={() => {
+                      onSelect(emp);
+                      setOpen(false);
+                      setFilter('');
+                    }}
+                    className="text-slate-200 data-[selected=true]:bg-slate-700 data-[selected=true]:text-white py-2.5"
+                  >
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm truncate">{emp.fullName}</span>
+                        {emp.isTeamLeader && (
+                          <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-[11px] text-slate-500">{emp.employeeId}</span>
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            )}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 /* ───────── Renewal Status Badge ───────── */
 
 function RenewalStatusBadge({ renewalDate }: { renewalDate: string }) {
@@ -518,13 +639,6 @@ export function UniformRegistryPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingEntry, setDeletingEntry] = useState<UniformEntry | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-
-  // Team leader confirmation dialog
-  const [teamLeaderConfirmOpen, setTeamLeaderConfirmOpen] = useState(false);
-  const [pendingTeamLeaderData, setPendingTeamLeaderData] = useState<{
-    employee: Employee;
-    site: Site;
-  } | null>(null);
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -857,38 +971,30 @@ export function UniformRegistryPage() {
     }
 
     // Proceed with creation (team leader is already set via the dropdown)
-    await doCreateEntry(false);
+    await doCreateEntry();
   }, [selectedEmployee, documentType, documentNumber, items, selectedSite, teamLeaderName]);
 
+  /* ── Reset form ── */
+  const resetForm = useCallback(() => {
+    setSelectedEmployee(null);
+    setDocumentType('');
+    setDocumentNumber('');
+    setItems({ ...DEFAULT_ITEMS });
+    setSelectedSite(null);
+    setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
+    setIsRenewal(false);
+    setPreviousTokenId(null);
+  }, []);
+
   /* ── Actually Create Entry ── */
-  const doCreateEntry = useCallback(async (setAsTeamLeader: boolean) => {
+  const doCreateEntry = useCallback(async () => {
     if (!selectedEmployee) return;
 
     setIsSubmitting(true);
     try {
-      // If setting as team leader, call the employee API first
-      if (setAsTeamLeader && selectedSite) {
-        const tlRes = await fetch(`/api/employees/${selectedEmployee.id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            isTeamLeader: true,
-            teamLeaderSiteId: selectedSite.id,
-          }),
-        });
-        const tlJson = await tlRes.json();
-        if (!tlJson.success) {
-          toast({
-            title: 'Team Leader Error',
-            description: tlJson.error || 'Failed to set team leader',
-            variant: 'destructive',
-          });
-          setIsSubmitting(false);
-          return;
-        }
-        setTeamLeaderName(selectedEmployee.fullName);
-      }
-
       const itemsJson = JSON.stringify(items);
 
       const res = await fetch('/api/uniform-registry', {
@@ -901,7 +1007,7 @@ export function UniformRegistryPage() {
           documentNumber: documentNumber.trim(),
           items: itemsJson,
           siteName: selectedSite?.name || null,
-          teamLeaderName: setAsTeamLeader ? selectedEmployee.fullName : teamLeaderName,
+          teamLeaderName: teamLeaderName,
           isRenewal,
           previousTokenId,
         }),
@@ -928,22 +1034,7 @@ export function UniformRegistryPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedEmployee, documentType, documentNumber, items, selectedSite, teamLeaderName, isRenewal, previousTokenId, fetchEntries]);
-
-  /* ── Reset form ── */
-  const resetForm = useCallback(() => {
-    setSelectedEmployee(null);
-    setDocumentType('');
-    setDocumentNumber('');
-    setItems({ ...DEFAULT_ITEMS });
-    setSelectedSite(null);
-    setTeamLeaderName(null);
-    setCurrentTeamLeader(null);
-    setSiteEmployees([]);
-    setIsChangingTeamLeader(false);
-    setIsRenewal(false);
-    setPreviousTokenId(null);
-  }, []);
+  }, [selectedEmployee, documentType, documentNumber, items, selectedSite, teamLeaderName, isRenewal, previousTokenId, fetchEntries, resetForm]);
 
   /* ── View Details ── */
   const openDetails = useCallback(async (entry: UniformEntry) => {
@@ -1241,7 +1332,7 @@ export function UniformRegistryPage() {
                           <span className="text-sm text-slate-300">
                             {entry.teamLeaderName ? (
                               <span className="flex items-center gap-1">
-                                <Shield className="h-3 w-3 text-blue-400" />
+                                <Crown className="h-3 w-3 text-amber-400" />
                                 {entry.teamLeaderName}
                               </span>
                             ) : (
@@ -1517,18 +1608,15 @@ export function UniformRegistryPage() {
             {/* Team Leader */}
             <div className="space-y-2">
               <Label className="text-slate-300 text-sm">Team Leader</Label>
-              <div className="flex items-center gap-2 h-10 px-3 rounded-lg border border-slate-700 bg-slate-900/50">
-                {teamLeaderLoading ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-slate-400" />
-                ) : teamLeaderName ? (
-                  <>
-                    <Shield className="h-4 w-4 text-blue-400" />
-                    <span className="text-sm text-white">{teamLeaderName}</span>
-                  </>
-                ) : (
-                  <span className="text-sm text-slate-500">No team leader assigned</span>
-                )}
-              </div>
+              <TeamLeaderCombobox
+                employees={siteEmployees}
+                currentTeamLeader={currentTeamLeader}
+                onSelect={handleTeamLeaderSelect}
+                onChangeLeader={() => setChangeLeaderConfirmOpen(true)}
+                isChanging={isChangingTeamLeader}
+                loading={teamLeaderLoading || isSettingTeamLeader}
+                disabled={!selectedSite}
+              />
             </div>
 
             {/* Renewal info (if renewing) */}
@@ -1573,38 +1661,38 @@ export function UniformRegistryPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ──────── Team Leader Confirmation Dialog ──────── */}
-      <AlertDialog open={teamLeaderConfirmOpen} onOpenChange={setTeamLeaderConfirmOpen}>
+      {/* ──────── Change Team Leader Confirmation ──────── */}
+      <AlertDialog open={changeLeaderConfirmOpen} onOpenChange={setChangeLeaderConfirmOpen}>
         <AlertDialogContent className="bg-slate-800 border-slate-700 text-slate-200">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-400" />
-              Set Team Leader?
+              <RefreshCw className="h-5 w-5 text-amber-400" />
+              Change Team Leader?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Would you like to set{' '}
-              <span className="text-white font-semibold">{pendingTeamLeaderData?.employee.fullName}</span>{' '}
-              as the team leader of{' '}
-              <span className="text-white font-semibold">{pendingTeamLeaderData?.site.name}</span>?
-              This site currently has no team leader assigned.
+              Are you sure you want to change the team leader for{' '}
+              <span className="text-white font-semibold">{selectedSite?.name}</span>? 
+              This will allow you to select a new employee as the leader.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600">
-              No, skip
+              Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                setTeamLeaderConfirmOpen(false);
-                doCreateEntry(true);
+                setIsChangingTeamLeader(true);
+                setChangeLeaderConfirmOpen(false);
               }}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className="bg-amber-600 hover:bg-amber-700 text-white"
             >
-              Yes, set as leader
+              Continue
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+
 
       {/* ──────── View Details Dialog ──────── */}
       <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
@@ -1670,7 +1758,7 @@ export function UniformRegistryPage() {
                   <p className="text-sm text-white">
                     {viewingEntry.teamLeaderName ? (
                       <span className="flex items-center gap-1">
-                        <Shield className="h-3.5 w-3.5 text-blue-400" />
+                        <Crown className="h-3.5 w-3.5 text-amber-400" />
                         {viewingEntry.teamLeaderName}
                       </span>
                     ) : (

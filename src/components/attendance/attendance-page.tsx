@@ -11,6 +11,7 @@ import {
   Search,
   MapPin,
   X,
+  Crown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ interface Employee {
   employeeId: string;
   currentSite: string | null;
   status: string;
+  isTeamLeader?: boolean;
 }
 
 interface SiteOption {
@@ -277,6 +279,9 @@ function SearchableEmployeeSelect({
         {selectedEmployee ? (
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className="truncate">{selectedEmployee.fullName}</span>
+            {selectedEmployee.isTeamLeader && (
+              <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            )}
             <span className="text-slate-500 text-xs">({selectedEmployee.employeeId})</span>
             {selectedEmployee.currentSite && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
@@ -331,7 +336,12 @@ function SearchableEmployeeSelect({
                     emp.id === selectedEmployeeId ? 'bg-slate-700/70 text-white' : 'text-slate-300'
                   )}
                 >
-                  <span className="truncate flex-1">{emp.fullName}</span>
+                  <span className="truncate flex-1 flex items-center gap-1.5">
+                    {emp.fullName}
+                    {emp.isTeamLeader && (
+                      <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    )}
+                  </span>
                   <span className="text-slate-500 text-xs shrink-0">({emp.employeeId})</span>
                   {emp.currentSite && (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
@@ -482,8 +492,11 @@ function ListView({
                   className="flex items-center hover:bg-slate-700/20 transition-colors"
                 >
                   <div className="w-52 shrink-0 px-4 py-2.5">
-                    <span className="text-sm text-white font-medium truncate block">
+                    <span className="text-sm text-white font-medium truncate flex items-center gap-1.5">
                       {emp.fullName}
+                      {emp.isTeamLeader && (
+                        <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      )}
                     </span>
                   </div>
                   <div className="w-28 shrink-0 px-3 py-2.5">
@@ -680,7 +693,12 @@ function CalendarView({
             {/* Employee info + Summary */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-6">
               <div className="flex items-center gap-2">
-                <span className="text-sm text-white font-medium">{selectedEmployee.fullName}</span>
+                <span className="text-sm text-white font-medium flex items-center gap-1.5">
+                  {selectedEmployee.fullName}
+                  {selectedEmployee.isTeamLeader && (
+                    <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  )}
+                </span>
                 <span className="text-xs text-slate-500">({selectedEmployee.employeeId})</span>
                 {selectedEmployee.currentSite && (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30">

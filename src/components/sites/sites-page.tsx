@@ -854,7 +854,7 @@ export function SitesPage() {
                                 <div className="flex items-center gap-1.5">
                                   <p className="text-sm font-medium text-white truncate">{emp.fullName}</p>
                                   {emp.isTeamLeader && emp.currentSite === viewSite.name && (
-                                    <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0 gap-0.5"><Crown className="h-2.5 w-2.5" /> Team Leader</Badge>
+                                    <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                                   )}
                                 </div>
                                 {emp.nationality && (
