@@ -18,7 +18,11 @@ import {
   ChevronsRight,
   AlertCircle,
   User,
+  Download,
+  Printer,
+  MessageCircle,
 } from 'lucide-react';
+import jsPDF from 'jspdf';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -63,6 +67,7 @@ interface Employee {
   companyName: string | null;
   phone: string | null;
   nationality: string | null;
+  idNumber: string | null;
 }
 
 interface LeaveRequest {
@@ -99,6 +104,268 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   rejected: { label: 'Rejected', color: 'bg-red-500/15 text-red-400 border-red-500/25', icon: XCircle },
 };
 
+/* ───────── PDF & Print Helpers ───────── */
+function formatFormalDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function generateLeavePdfDoc(req: LeaveRequest): jsPDF {
+  const doc = new jsPDF();
+  const typeLabels: Record<string, string> = {
+    casual: 'Casual Leave',
+    sick: 'Sick Leave',
+    annual: 'Annual Leave',
+    emergency: 'Emergency Leave',
+    marriage: 'Marriage Leave',
+    other: `Other (${req.otherTypeText || ''})`,
+  };
+  const leaveType = typeLabels[req.type] || req.type;
+  const submissionDate = formatFormalDate(new Date().toISOString());
+  const statusLabel = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+
+  // Company header
+  doc.setFontSize(18);
+  doc.setFont('helvetica', 'bold');
+  doc.text('ARABIAN SHIELD MANPOWER LLC.', 105, 25, { align: 'center' });
+  doc.setDrawColor(139, 0, 0);
+  doc.setLineWidth(1.5);
+  doc.line(20, 32, 190, 32);
+
+  // Title
+  let y = 42;
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(139, 0, 0);
+  doc.text('LEAVE APPLICATION FORM', 105, y, { align: 'center' });
+  y += 12;
+
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`Reference: LEAVE-${req.id.substring(0, 8)}`, 20, y);
+  doc.text(`Application Date: ${formatFormalDate(req.createdAt)}`, 190, y, { align: 'right' });
+  doc.text(`Status: ${statusLabel}`, 190, y + 7, { align: 'right' });
+  y += 14;
+
+  // Separator
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.line(20, y, 190, y);
+  y += 10;
+
+  // Section: Employee Information
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(139, 0, 0);
+  doc.text('EMPLOYEE INFORMATION', 20, y);
+  y += 8;
+  doc.setDrawColor(180, 180, 180);
+  doc.line(20, y, 190, y);
+  y += 7;
+
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(10);
+  const empFields = [
+    ['Employee Name', req.employee.fullName],
+    ['Employee ID', req.employee.employeeId],
+    ['Designation', req.employee.position || 'N/A'],
+    ['Company', req.employee.companyName || 'N/A'],
+    ['Contact', req.employee.phone || 'N/A'],
+    ['Nationality', req.employee.nationality || 'N/A'],
+  ];
+  for (const [label, value] of empFields) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${label}:`, 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, 70, y);
+    y += 7;
+  }
+  y += 5;
+
+  // Section: Leave Details
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(139, 0, 0);
+  doc.text('LEAVE DETAILS', 20, y);
+  y += 8;
+  doc.setDrawColor(180, 180, 180);
+  doc.line(20, y, 190, y);
+  y += 7;
+
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(10);
+  const leaveFields = [
+    ['Leave Type', leaveType],
+    ['Start Date', formatFormalDate(req.startDate)],
+    ['End Date', formatFormalDate(req.endDate)],
+    ['Total Days', `${req.totalDays} day${req.totalDays > 1 ? 's' : ''}`],
+  ];
+  for (const [label, value] of leaveFields) {
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${label}:`, 20, y);
+    doc.setFont('helvetica', 'normal');
+    doc.text(value, 70, y);
+    y += 7;
+  }
+  y += 5;
+
+  // Section: Reason
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.setTextColor(139, 0, 0);
+  doc.text('REASON FOR LEAVE', 20, y);
+  y += 8;
+  doc.setDrawColor(180, 180, 180);
+  doc.line(20, y, 190, y);
+  y += 7;
+
+  doc.setTextColor(50, 50, 50);
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(10);
+  const reasonLines = doc.splitTextToSize(req.reason, 170);
+  doc.text(reasonLines, 20, y);
+  y += reasonLines.length * 6 + 10;
+
+  // Review status if applicable
+  if (req.status !== 'pending' && req.reviewedBy) {
+    doc.setTextColor(30, 30, 30);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(`${statusLabel} by: ${req.reviewedBy}`, 20, y);
+    y += 10;
+  }
+
+  // Signature area
+  y += 10;
+  doc.setDrawColor(160, 160, 160);
+  doc.setLineWidth(0.3);
+  doc.line(20, y, 190, y);
+  y += 15;
+
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Employee Signature: _______________', 25, y);
+  doc.text('HR / Office Admin: _______________', 115, y);
+  y += 20;
+
+  // Footer
+  doc.setDrawColor(200, 200, 200);
+  doc.line(20, y, 190, y);
+  y += 7;
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text('This is a computer-generated document from Arabian Shield Manpower LLC.', 105, y, { align: 'center' });
+
+  return doc;
+}
+
+function downloadLeaveRequestPdf(req: LeaveRequest) {
+  const doc = generateLeavePdfDoc(req);
+  const filename = `leave-application-${req.employee.fullName.replace(/\s+/g, '-').toLowerCase()}-${req.id.substring(0, 8)}.pdf`;
+  doc.save(filename);
+}
+
+function printLeaveRequest(req: LeaveRequest) {
+  const typeLabels: Record<string, string> = {
+    casual: 'Casual', sick: 'Sick', annual: 'Annual',
+    emergency: 'Emergency', marriage: 'Marriage',
+    other: `Other (${req.otherTypeText || ''})`,
+  };
+  const leaveType = typeLabels[req.type] || req.type;
+  const submissionDate = formatFormalDate(new Date().toISOString());
+  const statusLabel = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8" /><title>Leave Application - ${req.employee.fullName}</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Times New Roman', Times, serif; background: #f0f0f0; padding: 40px 20px; display: flex; justify-content: center; }
+  .leave-form { max-width: 900px; width: 100%; background: white; border: 1px solid #999; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+  .header { text-align: center; padding: 20px 20px 10px; border-bottom: 2px solid #c00; }
+  .header h1 { font-size: 28px; font-weight: bold; letter-spacing: 2px; color: #8b0000; margin-bottom: 4px; }
+  .header h2 { font-size: 18px; font-weight: normal; color: #333; margin-top: 4px; }
+  .content { padding: 24px 30px 30px; }
+  .field-row { display: flex; margin-bottom: 16px; border-bottom: 1px solid #ddd; padding-bottom: 8px; }
+  .field-label { width: 180px; font-weight: bold; color: #1a1a1a; font-size: 14px; }
+  .field-value { flex: 1; font-size: 14px; color: #222; border-bottom: 1px dotted #aaa; padding-left: 8px; }
+  .section-title { font-weight: bold; margin: 20px 0 10px; font-size: 16px; background: #f5f5f5; padding: 6px 10px; border-left: 4px solid #8b0000; }
+  .signature-area { margin-top: 36px; display: flex; justify-content: space-between; padding-top: 20px; border-top: 1px dashed #ccc; }
+  .signature { text-align: center; width: 200px; }
+  .signature-line { margin-top: 40px; border-top: 1px solid #333; width: 100%; }
+  .signature p { margin-top: 8px; font-size: 12px; color: #555; }
+  .footer { text-align: center; font-size: 11px; color: #666; padding: 15px; border-top: 1px solid #eee; margin-top: 20px; }
+</style></head>
+<body>
+<div class="leave-form">
+  <div class="header"><h1>LEAVE APPLICATION FORM</h1><h2>Arabian Shield Manpower LLC.</h2></div>
+  <div class="content">
+    <div class="field-row"><div class="field-label">EMPLOYEE NAME</div><div class="field-value">${req.employee.fullName}</div></div>
+    <div class="field-row"><div class="field-label">EMPLOYEE ID</div><div class="field-value">${req.employee.employeeId}</div></div>
+    <div class="field-row"><div class="field-label">DESIGNATION</div><div class="field-value">${req.employee.position || 'N/A'}</div></div>
+    <div class="field-row"><div class="field-label">COMPANY NAME</div><div class="field-value">${req.employee.companyName || 'N/A'}</div></div>
+    <div class="field-row"><div class="field-label">CONTACT NUMBER</div><div class="field-value">${req.employee.phone || 'N/A'}</div></div>
+    <div class="field-row"><div class="field-label">NATIONALITY</div><div class="field-value">${req.employee.nationality || 'N/A'}</div></div>
+    <div class="field-row"><div class="field-label">APP. SUBMISSION DATE</div><div class="field-value">${submissionDate}</div></div>
+    <div class="field-row"><div class="field-label">STATUS</div><div class="field-value">${statusLabel}</div></div>
+    <div class="section-title">Leave Details</div>
+    <div class="field-row"><div class="field-label">Type of Leave</div><div class="field-value">${leaveType}</div></div>
+    <div class="field-row"><div class="field-label">Leave Period</div><div class="field-value">From: ${formatFormalDate(req.startDate)}  To: ${formatFormalDate(req.endDate)}</div></div>
+    <div class="field-row"><div class="field-label">Total No. of Days</div><div class="field-value">${req.totalDays} DAYS</div></div>
+    <div class="section-title">Reason for Leave</div>
+    <div class="field-row"><div class="field-value" style="border:none; white-space: pre-wrap;">${req.reason}</div></div>
+    <div class="signature-area">
+      <div class="signature"><div class="signature-line"></div><p>Employee Signature</p></div>
+      <div class="signature"><div class="signature-line"></div><p>HR / OFFICE ADMIN</p></div>
+    </div>
+  </div>
+  <div class="footer">This is a computer-generated document from Arabian Shield Manpower LLC.</div>
+</div>
+</body></html>`;
+
+  const printWindow = window.open('', '_blank');
+  if (printWindow) {
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+  }
+}
+
+async function sendLeaveRequestWhatsApp(req: LeaveRequest) {
+  try {
+    const doc = generateLeavePdfDoc(req);
+    const pdfBlob = doc.output('blob');
+    const file = new File([pdfBlob], `leave-application-${req.employee.fullName.replace(/\s+/g, '-')}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Leave Application',
+        text: `Leave Application - ${req.employee.fullName} (${req.employee.employeeId})`,
+      });
+    } else {
+      // Fallback: download PDF first, then open WhatsApp with text
+      const filename = `leave-application-${req.employee.fullName.replace(/\s+/g, '-').toLowerCase()}-${req.id.substring(0, 8)}.pdf`;
+      doc.save(filename);
+      const message = encodeURIComponent(
+        `*LEAVE APPLICATION - ARABIAN SHIELD MANPOWER LLC.*\n\nEmployee: ${req.employee.fullName}\nID: ${req.employee.employeeId}\nType: ${req.type}\nFrom: ${formatFormalDate(req.startDate)} To: ${formatFormalDate(req.endDate)}\nDays: ${req.totalDays}\nReason: ${req.reason}\n\nPlease find the attached PDF for complete details.`
+      );
+      window.open(`https://wa.me/?text=${message}`, '_blank');
+    }
+  } catch (err) {
+    // User cancelled share or error
+    if ((err as Error).name !== 'AbortError') {
+      console.error('Share failed:', err);
+    }
+  }
+}
+
 /* ───────── Searchable Employee Dropdown ───────── */
 interface SearchableEmployeeSelectProps {
   employees: Employee[];
@@ -118,7 +385,8 @@ function SearchableEmployeeSelect({ employees, value, onChange }: SearchableEmpl
     ? employees.filter(
         (e) =>
           e.fullName.toLowerCase().includes(search.toLowerCase()) ||
-          e.employeeId.toLowerCase().includes(search.toLowerCase())
+          e.employeeId.toLowerCase().includes(search.toLowerCase()) ||
+          (e.idNumber && e.idNumber.toLowerCase().includes(search.toLowerCase()))
       )
     : employees;
 
@@ -148,7 +416,7 @@ function SearchableEmployeeSelect({ employees, value, onChange }: SearchableEmpl
       >
         <User className="h-4 w-4 text-slate-500 shrink-0" />
         <span className="truncate flex-1">
-          {selected ? `${selected.fullName} (${selected.employeeId})` : 'Select employee...'}
+          {selected ? `${selected.fullName} - ${selected.idNumber || selected.employeeId}` : 'Select employee...'}
         </span>
       </button>
 
@@ -185,8 +453,7 @@ function SearchableEmployeeSelect({ employees, value, onChange }: SearchableEmpl
                     emp.id === value ? 'bg-slate-700/70 text-white' : 'text-slate-300'
                   )}
                 >
-                  <span className="truncate flex-1">{emp.fullName}</span>
-                  <span className="text-slate-500 text-xs shrink-0">({emp.employeeId})</span>
+                  <span className="truncate flex-1">{emp.fullName} - {emp.idNumber || emp.employeeId}</span>
                 </button>
               ))
             )}
@@ -561,6 +828,7 @@ export function LeaveRequestPage() {
                   <TableHead className="text-slate-400 font-medium">Reason</TableHead>
                   <TableHead className="text-slate-400 font-medium">Status</TableHead>
                   <TableHead className="text-slate-400 font-medium">Created</TableHead>
+                  <TableHead className="text-slate-400 font-medium text-right">Document</TableHead>
                   {isSuperAdmin && (
                     <TableHead className="text-slate-400 font-medium text-right">Actions</TableHead>
                   )}
@@ -601,6 +869,37 @@ export function LeaveRequestPage() {
                     </TableCell>
                     <TableCell>
                       <p className="text-xs text-slate-500">{formatDate(request.createdAt)}</p>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-slate-400 hover:text-white hover:bg-slate-700/50 gap-1"
+                          onClick={() => downloadLeaveRequestPdf(request)}
+                          title="Download PDF"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-slate-400 hover:text-white hover:bg-slate-700/50 gap-1"
+                          onClick={() => printLeaveRequest(request)}
+                          title="Print"
+                        >
+                          <Printer className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-green-400 hover:text-green-300 hover:bg-green-500/10 gap-1"
+                          onClick={() => sendLeaveRequestWhatsApp(request)}
+                          title="Send via WhatsApp"
+                        >
+                          <MessageCircle className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                     {isSuperAdmin && (
                       <TableCell>

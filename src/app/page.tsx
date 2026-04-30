@@ -93,7 +93,7 @@ function getDerivedAppState(user: ReturnType<typeof useAuthStore.getState>['user
 }
 
 export default function Home() {
-  const { user, setUser, setLoading, init } = useAuthStore();
+  const { user, setUser, setLoading } = useAuthStore();
   const [hasUsers, setHasUsers] = useState<boolean | null>(null);
   const hasChecked = useRef(false);
 
@@ -108,7 +108,6 @@ export default function Home() {
     hasChecked.current = true;
 
     // Try to restore session from localStorage
-    init();
 
     let cancelled = false;
 
