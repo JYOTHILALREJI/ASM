@@ -8,18 +8,22 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || '';
     const siteName = searchParams.get('siteName') || '';
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '10', 10);
+    const limit = parseInt(searchParams.get('limit') || '20', 10);
     const skip = (page - 1) * limit;
 
     // Build where clause
     const where: Record<string, unknown> = {};
 
     if (search) {
-      where.OR = [
+      const orConditions: Record<string, unknown>[] = [
         { employeeName: { contains: search } },
         { documentNumber: { contains: search } },
-        { tokenNumber: isNaN(Number(search)) ? undefined : Number(search) },
-      ].filter(Boolean);
+      ];
+      const tokenNum = parseInt(search, 10);
+      if (!isNaN(tokenNum)) {
+        orConditions.push({ tokenNumber: tokenNum });
+      }
+      where.OR = orConditions;
     }
 
     if (siteName) {
@@ -36,6 +40,7 @@ export async function GET(request: NextRequest) {
               fullName: true,
               isTeamLeader: true,
               currentSite: true,
+              photo: true,
             },
           },
         },
@@ -54,18 +59,19 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json({
-      data: serialized,
-      pagination: {
+      success: true,
+      data: {
+        entries: serialized,
+        total,
         page,
         limit,
-        total,
         totalPages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
     console.error('[UNIFORM_REGISTRY_GET]', error);
     return NextResponse.json(
-      { error: 'Failed to fetch uniform registry entries' },
+      { success: false, error: 'Failed to fetch uniform registry entries' },
       { status: 500 }
     );
   }
@@ -90,7 +96,7 @@ export async function POST(request: NextRequest) {
     // Validate required fields
     if (!employeeName || !employeeId || !documentType || !documentNumber || !items) {
       return NextResponse.json(
-        { error: 'Missing required fields: employeeName, employeeId, documentType, documentNumber, items' },
+        { success: false, error: 'Missing required fields: employeeName, employeeId, documentType, documentNumber, items' },
         { status: 400 }
       );
     }
@@ -98,7 +104,7 @@ export async function POST(request: NextRequest) {
     // Validate documentType
     if (!['id', 'passport'].includes(documentType)) {
       return NextResponse.json(
-        { error: 'documentType must be "id" or "passport"' },
+        { success: false, error: 'documentType must be "id" or "passport"' },
         { status: 400 }
       );
     }
@@ -110,7 +116,7 @@ export async function POST(request: NextRequest) {
 
     if (!employee) {
       return NextResponse.json(
-        { error: 'Employee not found' },
+        { success: false, error: 'Employee not found' },
         { status: 404 }
       );
     }
@@ -148,6 +154,7 @@ export async function POST(request: NextRequest) {
             fullName: true,
             isTeamLeader: true,
             currentSite: true,
+            photo: true,
           },
         },
       },
@@ -155,16 +162,21 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       {
-        ...entry,
-        createdAt: entry.createdAt.toISOString(),
-        renewalDate: entry.renewalDate.toISOString(),
+        success: true,
+        data: {
+          entry: {
+            ...entry,
+            createdAt: entry.createdAt.toISOString(),
+            renewalDate: entry.renewalDate.toISOString(),
+          },
+        },
       },
       { status: 201 }
     );
   } catch (error) {
     console.error('[UNIFORM_REGISTRY_POST]', error);
     return NextResponse.json(
-      { error: 'Failed to create uniform registry entry' },
+      { success: false, error: 'Failed to create uniform registry entry' },
       { status: 500 }
     );
   }
