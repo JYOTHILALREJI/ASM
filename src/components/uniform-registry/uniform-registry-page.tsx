@@ -495,6 +495,11 @@ export function UniformRegistryPage() {
   const [selectedSite, setSelectedSite] = useState<Site | null>(null);
   const [teamLeaderName, setTeamLeaderName] = useState<string | null>(null);
   const [teamLeaderLoading, setTeamLeaderLoading] = useState(false);
+  const [currentTeamLeader, setCurrentTeamLeader] = useState<Employee | null>(null);
+  const [siteEmployees, setSiteEmployees] = useState<Employee[]>([]);
+  const [isChangingTeamLeader, setIsChangingTeamLeader] = useState(false);
+  const [changeLeaderConfirmOpen, setChangeLeaderConfirmOpen] = useState(false);
+  const [isSettingTeamLeader, setIsSettingTeamLeader] = useState(false);
 
   // Employee/site data for dropdowns
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -520,7 +525,6 @@ export function UniformRegistryPage() {
     employee: Employee;
     site: Site;
   } | null>(null);
-  const [isSettingTeamLeader, setIsSettingTeamLeader] = useState(false);
 
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -582,11 +586,14 @@ export function UniformRegistryPage() {
   const findTeamLeaderForSite = useCallback(async (siteId: string) => {
     setTeamLeaderLoading(true);
     setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setIsChangingTeamLeader(false);
     try {
       // Find the site name from the sites list
       const site = sites.find((s) => s.id === siteId);
       if (!site) {
         setTeamLeaderName(null);
+        setSiteEmployees([]);
         return null;
       }
 
@@ -594,20 +601,32 @@ export function UniformRegistryPage() {
       const res = await fetch(`/api/employees?limit=1000&status=active`);
       const json = await res.json();
       if (json.success) {
-        const leader = (json.data.employees || []).find(
+        const allEmps: Employee[] = json.data.employees || [];
+        // Filter employees of this site
+        const siteEmps = allEmps.filter(
+          (e: Employee) => e.currentSite === site.name && e.status === 'active'
+        );
+        setSiteEmployees(siteEmps);
+
+        const leader = allEmps.find(
           (e: Employee) => e.isTeamLeader && e.teamLeaderSiteId === siteId
         );
         if (leader) {
           setTeamLeaderName(leader.fullName);
+          setCurrentTeamLeader(leader);
           return leader;
         } else {
           setTeamLeaderName(null);
+          setCurrentTeamLeader(null);
           return null;
         }
       }
+      setSiteEmployees([]);
       return null;
     } catch {
       setTeamLeaderName(null);
+      setCurrentTeamLeader(null);
+      setSiteEmployees([]);
       return null;
     } finally {
       setTeamLeaderLoading(false);
@@ -650,6 +669,9 @@ export function UniformRegistryPage() {
     setItems({ ...DEFAULT_ITEMS });
     setSelectedSite(null);
     setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
     setIsRenewal(false);
     setPreviousTokenId(null);
     setCreateDialogOpen(true);
@@ -679,6 +701,9 @@ export function UniformRegistryPage() {
     setItems(parsedItems);
     setIsRenewal(true);
     setPreviousTokenId(entry.id);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
 
     // Try to find the site from the sites list
     const site = sites.find((s) => s.name === entry.siteName) || null;
@@ -718,8 +743,97 @@ export function UniformRegistryPage() {
   /* ── Handle Site Selection ── */
   const handleSiteSelect = useCallback(async (site: Site) => {
     setSelectedSite(site);
+    setIsChangingTeamLeader(false);
     await findTeamLeaderForSite(site.id);
   }, [findTeamLeaderForSite]);
+
+  /* ── Handle Team Leader Selection ── */
+  const handleTeamLeaderSelect = useCallback(async (emp: Employee) => {
+    if (!selectedSite) return;
+
+    setIsSettingTeamLeader(true);
+    try {
+      // If there's an existing team leader for this site, remove their leader status first
+      if (currentTeamLeader && currentTeamLeader.id !== emp.id) {
+        const removeRes = await fetch(`/api/employees/${currentTeamLeader.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            isTeamLeader: false,
+            teamLeaderSiteId: null,
+          }),
+        });
+        if (!removeRes.ok) {
+          const removeJson = await removeRes.json();
+          toast({
+            title: 'Error',
+            description: removeJson.error || 'Failed to remove previous team leader',
+            variant: 'destructive',
+          });
+          setIsSettingTeamLeader(false);
+          return;
+        }
+      }
+
+      // Set the new team leader
+      const tlRes = await fetch(`/api/employees/${emp.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isTeamLeader: true,
+          teamLeaderSiteId: selectedSite.id,
+        }),
+      });
+      const tlJson = await tlRes.json();
+      if (!tlJson.success) {
+        toast({
+          title: 'Team Leader Error',
+          description: tlJson.error || 'Failed to set team leader',
+          variant: 'destructive',
+        });
+        setIsSettingTeamLeader(false);
+        return;
+      }
+
+      // Update local state
+      setTeamLeaderName(emp.fullName);
+      setCurrentTeamLeader(emp);
+      setIsChangingTeamLeader(false);
+
+      // Update the employees list to reflect team leader changes
+      setEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id === emp.id) {
+            return { ...e, isTeamLeader: true, teamLeaderSiteId: selectedSite.id };
+          }
+          if (currentTeamLeader && e.id === currentTeamLeader.id) {
+            return { ...e, isTeamLeader: false, teamLeaderSiteId: null };
+          }
+          return e;
+        })
+      );
+      setSiteEmployees((prev) =>
+        prev.map((e) => {
+          if (e.id === emp.id) {
+            return { ...e, isTeamLeader: true, teamLeaderSiteId: selectedSite.id };
+          }
+          if (currentTeamLeader && e.id === currentTeamLeader.id) {
+            return { ...e, isTeamLeader: false, teamLeaderSiteId: null };
+          }
+          return e;
+        })
+      );
+
+      toast({
+        title: 'Team Leader Set',
+        description: `${emp.fullName} has been set as team leader of ${selectedSite.name}.`,
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to set team leader', variant: 'destructive' });
+    } finally {
+      setIsSettingTeamLeader(false);
+    }
+  }, [selectedSite, currentTeamLeader]);
 
   /* ── Handle Create Entry ── */
   const handleCreateEntry = useCallback(async () => {
@@ -742,18 +856,7 @@ export function UniformRegistryPage() {
       return;
     }
 
-    // Check if team leader confirmation is needed
-    if (selectedSite && !teamLeaderName) {
-      // Check if this employee is already a team leader of this site
-      if (!selectedEmployee.isTeamLeader || selectedEmployee.teamLeaderSiteId !== selectedSite.id) {
-        // Show team leader confirmation popup
-        setPendingTeamLeaderData({ employee: selectedEmployee, site: selectedSite });
-        setTeamLeaderConfirmOpen(true);
-        return;
-      }
-    }
-
-    // Proceed with creation
+    // Proceed with creation (team leader is already set via the dropdown)
     await doCreateEntry(false);
   }, [selectedEmployee, documentType, documentNumber, items, selectedSite, teamLeaderName]);
 
@@ -835,6 +938,9 @@ export function UniformRegistryPage() {
     setItems({ ...DEFAULT_ITEMS });
     setSelectedSite(null);
     setTeamLeaderName(null);
+    setCurrentTeamLeader(null);
+    setSiteEmployees([]);
+    setIsChangingTeamLeader(false);
     setIsRenewal(false);
     setPreviousTokenId(null);
   }, []);

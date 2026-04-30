@@ -40,13 +40,13 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'employees', label: 'Employees', icon: Users },
-  { id: 'sites', label: 'Sites', icon: Building2 },
-  { id: 'attendance', label: 'Attendance', icon: Calendar },
-  { id: 'uniform_registry' as AppView, label: 'Uniform Registry', icon: Shirt },
-  { id: 'leave_requests', label: 'Leave Requests', icon: FileText },
-  { id: 'cancellation_requests', label: 'Cancellations', icon: Ban },
-  { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'employees', label: 'Employees', icon: Users, roles: ['super_admin'] },
+  { id: 'sites', label: 'Sites', icon: Building2, roles: ['super_admin'] },
+  { id: 'attendance', label: 'Attendance', icon: Calendar, roles: ['super_admin'] },
+  { id: 'uniform_registry', label: 'Uniform Registry', icon: Shirt },
+  { id: 'leave_requests', label: 'Leave Requests', icon: FileText, roles: ['super_admin'] },
+  { id: 'cancellation_requests', label: 'Cancellations', icon: Ban, roles: ['super_admin'] },
+  { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['super_admin'] },
   { id: 'admins', label: 'Create Admins', icon: Shield, roles: ['super_admin'] },
 ];
 
