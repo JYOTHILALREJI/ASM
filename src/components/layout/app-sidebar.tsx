@@ -13,6 +13,7 @@ import {
   Building2,
   FileText,
   Ban,
+  Shirt,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,6 +43,7 @@ const navItems: NavItem[] = [
   { id: 'employees', label: 'Employees', icon: Users },
   { id: 'sites', label: 'Sites', icon: Building2 },
   { id: 'attendance', label: 'Attendance', icon: Calendar },
+  { id: 'uniform_registry' as AppView, label: 'Uniform Registry', icon: Shirt },
   { id: 'leave_requests', label: 'Leave Requests', icon: FileText },
   { id: 'cancellation_requests', label: 'Cancellations', icon: Ban },
   { id: 'notifications', label: 'Notifications', icon: Bell },

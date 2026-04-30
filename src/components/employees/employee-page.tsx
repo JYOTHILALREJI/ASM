@@ -34,6 +34,7 @@ import {
   Camera,
   Upload,
   ImagePlus,
+  Crown,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -68,6 +69,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/auth-store';
 
@@ -91,6 +93,8 @@ interface Employee {
   idNumber: string | null;
   idStatus: string | null;
   currentSite: string | null;
+  isTeamLeader: boolean;
+  teamLeaderSiteId: string | null;
   rating: number;
   status: string;
   photo: string | null;
@@ -478,6 +482,8 @@ export function EmployeePage() {
     idNumber: '',
     idStatus: '',
     currentSite: '',
+    isTeamLeader: false,
+    teamLeaderSiteId: '',
   });
   const [formPhoto, setFormPhoto] = useState<string | null>(null);
   const [showNewSiteInput, setShowNewSiteInput] = useState(false);
@@ -588,6 +594,8 @@ export function EmployeePage() {
       idNumber: '',
       idStatus: '',
       currentSite: '',
+      isTeamLeader: false,
+      teamLeaderSiteId: '',
     });
     setFormTab('personal');
     setShowNewSiteInput(false);
@@ -616,6 +624,8 @@ export function EmployeePage() {
       idNumber: employee.idNumber || '',
       idStatus: employee.idStatus || '',
       currentSite: employee.currentSite || '',
+      isTeamLeader: employee.isTeamLeader || false,
+      teamLeaderSiteId: employee.teamLeaderSiteId || '',
     });
     setFormTab('personal');
     setShowNewSiteInput(false);
@@ -707,10 +717,15 @@ export function EmployeePage() {
     }
     setIsSubmitting(true);
     try {
-      const payload: Record<string, unknown> = { ...formData, photo: formPhoto };
-      // Clear empty strings
+      const payload: Record<string, unknown> = {
+        ...formData,
+        photo: formPhoto,
+        isTeamLeader: formData.isTeamLeader,
+        teamLeaderSiteId: formData.isTeamLeader ? (formData.teamLeaderSiteId || null) : null,
+      };
+      // Clear empty strings (but keep booleans)
       Object.keys(payload).forEach((key) => {
-        if (payload[key] === '') payload[key] = null;
+        if (payload[key] === '' && key !== 'isTeamLeader') payload[key] = null;
       });
 
       let res: Response;
@@ -992,11 +1007,25 @@ export function EmployeePage() {
                       <TableCell>
                         <div className="flex items-center gap-3">
                           <EmployeeAvatar name={emp.fullName} photo={emp.photo} />
-                          <div>
-                            <p className="text-sm font-medium text-white">{emp.fullName}</p>
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-sm font-medium text-white">{emp.fullName}</p>
+                              {emp.isTeamLeader && (
+                                <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0">
+                                  <Crown className="h-2.5 w-2.5 mr-0.5" />
+                                  Team Leader
+                                </Badge>
+                              )}
+                            </div>
                             {emp.nationality && (
                               <p className="text-xs text-slate-500">{emp.nationality}</p>
                             )}
+                            {emp.isTeamLeader && emp.teamLeaderSiteId && (() => {
+                              const leadSite = sites.find(s => s.id === emp.teamLeaderSiteId);
+                              return leadSite ? (
+                                <p className="text-[10px] text-amber-400/70">Leads: {leadSite.name}</p>
+                              ) : null;
+                            })()}
                           </div>
                         </div>
                       </TableCell>
@@ -1074,9 +1103,23 @@ export function EmployeePage() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex items-center gap-3">
                       <EmployeeAvatar name={emp.fullName} photo={emp.photo} />
-                      <div>
-                        <p className="text-sm font-medium text-white">{emp.fullName}</p>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-white">{emp.fullName}</p>
+                          {emp.isTeamLeader && (
+                            <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0">
+                              <Crown className="h-2.5 w-2.5 mr-0.5" />
+                              Team Leader
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500 font-mono">{emp.employeeId}</p>
+                        {emp.isTeamLeader && emp.teamLeaderSiteId && (() => {
+                          const leadSite = sites.find(s => s.id === emp.teamLeaderSiteId);
+                          return leadSite ? (
+                            <p className="text-[10px] text-amber-400/70">Leads: {leadSite.name}</p>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                     <StatusBadge status={emp.status} />
@@ -1446,6 +1489,56 @@ export function EmployeePage() {
 
                 <Separator className="bg-slate-700/50" />
 
+                {/* Team Leader Section */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <Crown className="h-4 w-4" />
+                    Team Leader
+                  </h4>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                    <div>
+                      <Label className="text-slate-300 text-sm">Team Leader</Label>
+                      <p className="text-xs text-slate-500">Designate this employee as a team leader</p>
+                    </div>
+                    <Switch
+                      checked={formData.isTeamLeader}
+                      onCheckedChange={(checked) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          isTeamLeader: checked,
+                          teamLeaderSiteId: checked ? prev.teamLeaderSiteId : '',
+                        }));
+                      }}
+                    />
+                  </div>
+                  {formData.isTeamLeader && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-300 text-sm">Lead Site</Label>
+                      <Select
+                        value={formData.teamLeaderSiteId || '__none__'}
+                        onValueChange={(v) => {
+                          handleFormChange('teamLeaderSiteId', v === '__none__' ? '' : v);
+                        }}
+                      >
+                        <SelectTrigger className="bg-slate-900 border-slate-600 text-white w-full">
+                          <SelectValue placeholder="Select which site they lead" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          <SelectItem value="__none__">
+                            <span className="text-slate-500">No specific site</span>
+                          </SelectItem>
+                          {sites.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-slate-500">Select the site this employee is the team leader of.</p>
+                    </div>
+                  )}
+                </div>
+
+                <Separator className="bg-slate-700/50" />
+
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
                     <FileText className="h-4 w-4" />
@@ -1601,7 +1694,15 @@ export function EmployeePage() {
                       )}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-white">{viewingEmployee.fullName}</h3>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="text-lg font-semibold text-white">{viewingEmployee.fullName}</h3>
+                        {viewingEmployee.isTeamLeader && (
+                          <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0">
+                            <Crown className="h-2.5 w-2.5 mr-0.5" />
+                            Team Leader
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-slate-400 font-mono">{viewingEmployee.employeeId}</p>
                       <div className="mt-1">
                         <StatusBadge status={viewingEmployee.status} />
@@ -1695,6 +1796,35 @@ export function EmployeePage() {
                       ))}
                     </div>
                   </div>
+
+                  <Separator className="bg-slate-700/50" />
+
+                  {/* Team Leader Status */}
+                  {viewingEmployee.isTeamLeader && (
+                    <div>
+                      <h4 className="text-sm font-semibold text-white mb-3 flex items-center gap-2">
+                        <Crown className="h-4 w-4 text-amber-400" />
+                        Team Leader
+                      </h4>
+                      <div className="p-4 rounded-lg bg-amber-500/5 border border-amber-500/20">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/15">
+                            <Crown className="h-5 w-5 text-amber-400" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-amber-300">
+                              Team Leader
+                              {viewingEmployee.teamLeaderSiteId && (() => {
+                                const leadSite = sites.find(s => s.id === viewingEmployee.teamLeaderSiteId);
+                                return leadSite ? ` of ${leadSite.name}` : '';
+                              })()}
+                            </p>
+                            <p className="text-xs text-amber-400/60">This employee is designated as a team leader</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
 
                   <Separator className="bg-slate-700/50" />
 

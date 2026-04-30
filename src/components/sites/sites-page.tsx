@@ -16,6 +16,7 @@ import {
   MapPin,
   X,
   Loader2,
+  Crown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -75,6 +76,8 @@ interface SiteEmployee {
   currentSite: string | null;
   status: string;
   photo: string | null;
+  isTeamLeader: boolean;
+  teamLeaderSiteId: string | null;
 }
 
 interface AllEmployee {
@@ -655,7 +658,7 @@ export function SitesPage() {
 
   /* ── Filter employees ── */
   const filteredEmployees = useMemo(() => {
-    return siteEmployees.filter((e) => {
+    const filtered = siteEmployees.filter((e) => {
       if (!empSearch) return true;
       const q = empSearch.toLowerCase();
       return (
@@ -665,7 +668,16 @@ export function SitesPage() {
         (e.nationality && e.nationality.toLowerCase().includes(q))
       );
     });
-  }, [siteEmployees, empSearch]);
+    // Sort: team leaders of the current site first
+    const siteName = viewSite?.name;
+    return filtered.sort((a, b) => {
+      const aIsLeader = a.isTeamLeader && a.currentSite === siteName;
+      const bIsLeader = b.isTeamLeader && b.currentSite === siteName;
+      if (aIsLeader && !bIsLeader) return -1;
+      if (!aIsLeader && bIsLeader) return 1;
+      return 0;
+    });
+  }, [siteEmployees, empSearch, viewSite]);
 
   const toggleSelectAll = useCallback(() => {
     if (selectedEmps.size === filteredEmployees.length) {
@@ -721,9 +733,21 @@ export function SitesPage() {
                     {siteEmployees.length} {siteEmployees.length === 1 ? 'employee' : 'employees'}
                   </Badge>
                 </div>
-                <p className="text-sm text-slate-500 mt-0.5">
-                  Created {new Date(viewSite.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                </p>
+                {(() => {
+                  const leader = siteEmployees.find(
+                    (e) => e.isTeamLeader && e.currentSite === viewSite.name
+                  );
+                  return leader ? (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <Crown className="h-3.5 w-3.5 text-amber-400" />
+                      <span className="text-sm text-amber-400 font-medium">Team Leader: {leader.fullName}</span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-500 mt-0.5">
+                      Created {new Date(viewSite.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                    </p>
+                  );
+                })()}
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -827,7 +851,12 @@ export function SitesPage() {
                                 </div>
                               )}
                               <div className="min-w-0">
-                                <p className="text-sm font-medium text-white truncate">{emp.fullName}</p>
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-sm font-medium text-white truncate">{emp.fullName}</p>
+                                  {emp.isTeamLeader && emp.currentSite === viewSite.name && (
+                                    <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-[10px] px-1.5 py-0 shrink-0 gap-0.5"><Crown className="h-2.5 w-2.5" /> Team Leader</Badge>
+                                  )}
+                                </div>
                                 {emp.nationality && (
                                   <p className="text-xs text-slate-500">{emp.nationality}</p>
                                 )}

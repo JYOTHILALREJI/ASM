@@ -22,6 +22,7 @@ const viewTitles: Record<string, string> = {
   employees: 'Employee Management',
   sites: 'Sites',
   attendance: 'Attendance Tracking',
+  uniform_registry: 'Uniform Registry',
   leave_requests: 'Leave Requests',
   cancellation_requests: 'Cancellation Requests',
   notifications: 'Notifications',
