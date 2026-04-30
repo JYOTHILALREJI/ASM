@@ -12,6 +12,7 @@ import {
   MapPin,
   X,
   Crown,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +39,7 @@ interface Employee {
   currentSite: string | null;
   status: string;
   isTeamLeader?: boolean;
+  isSupervisor?: boolean;
 }
 
 interface SiteOption {
@@ -282,6 +284,9 @@ function SearchableEmployeeSelect({
             {selectedEmployee.isTeamLeader && (
               <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
             )}
+            {selectedEmployee.isSupervisor && (
+              <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+            )}
             <span className="text-slate-500 text-xs">({selectedEmployee.employeeId})</span>
             {selectedEmployee.currentSite && (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
@@ -340,6 +345,9 @@ function SearchableEmployeeSelect({
                     {emp.fullName}
                     {emp.isTeamLeader && (
                       <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                    )}
+                    {emp.isSupervisor && (
+                      <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                     )}
                   </span>
                   <span className="text-slate-500 text-xs shrink-0">({emp.employeeId})</span>
@@ -496,6 +504,9 @@ function ListView({
                       {emp.fullName}
                       {emp.isTeamLeader && (
                         <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                      )}
+                      {emp.isSupervisor && (
+                        <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                       )}
                     </span>
                   </div>
@@ -697,6 +708,9 @@ function CalendarView({
                   {selectedEmployee.fullName}
                   {selectedEmployee.isTeamLeader && (
                     <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                  )}
+                  {selectedEmployee.isSupervisor && (
+                    <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                   )}
                 </span>
                 <span className="text-xs text-slate-500">({selectedEmployee.employeeId})</span>

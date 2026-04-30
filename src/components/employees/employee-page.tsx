@@ -35,6 +35,7 @@ import {
   Upload,
   ImagePlus,
   Crown,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -72,6 +73,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/auth-store';
+import { cn } from '@/lib/utils';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -95,6 +97,8 @@ interface Employee {
   currentSite: string | null;
   isTeamLeader: boolean;
   teamLeaderSiteId: string | null;
+  isSupervisor: boolean;
+  supervisorSiteId: string | null;
   rating: number;
   status: string;
   photo: string | null;
@@ -177,10 +181,6 @@ function SearchableNationalitySelect({
       setSearch('');
     }
   };
-
-  function cn(arg0: string, arg1: string): string {
-    return `${arg0} ${arg1}`;
-  }
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -484,6 +484,8 @@ export function EmployeePage() {
     currentSite: '',
     isTeamLeader: false,
     teamLeaderSiteId: '',
+    isSupervisor: false,
+    supervisorSiteId: '',
   });
   const [formPhoto, setFormPhoto] = useState<string | null>(null);
   const [showNewSiteInput, setShowNewSiteInput] = useState(false);
@@ -596,6 +598,8 @@ export function EmployeePage() {
       currentSite: '',
       isTeamLeader: false,
       teamLeaderSiteId: '',
+      isSupervisor: false,
+      supervisorSiteId: '',
     });
     setFormTab('personal');
     setShowNewSiteInput(false);
@@ -626,6 +630,8 @@ export function EmployeePage() {
       currentSite: employee.currentSite || '',
       isTeamLeader: employee.isTeamLeader || false,
       teamLeaderSiteId: employee.teamLeaderSiteId || '',
+      isSupervisor: employee.isSupervisor || false,
+      supervisorSiteId: employee.supervisorSiteId || '',
     });
     setFormTab('personal');
     setShowNewSiteInput(false);
@@ -722,10 +728,12 @@ export function EmployeePage() {
         photo: formPhoto,
         isTeamLeader: formData.isTeamLeader,
         teamLeaderSiteId: formData.isTeamLeader ? (formData.teamLeaderSiteId || null) : null,
+        isSupervisor: formData.isSupervisor,
+        supervisorSiteId: formData.isSupervisor ? (formData.supervisorSiteId || null) : null,
       };
       // Clear empty strings (but keep booleans)
       Object.keys(payload).forEach((key) => {
-        if (payload[key] === '' && key !== 'isTeamLeader') payload[key] = null;
+        if (payload[key] === '' && key !== 'isTeamLeader' && key !== 'isSupervisor') payload[key] = null;
       });
 
       let res: Response;
@@ -1013,6 +1021,9 @@ export function EmployeePage() {
                               {emp.isTeamLeader && (
                                 <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                               )}
+                              {emp.isSupervisor && (
+                                <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                              )}
                             </div>
                             {emp.nationality && (
                               <p className="text-xs text-slate-500">{emp.nationality}</p>
@@ -1021,6 +1032,12 @@ export function EmployeePage() {
                               const leadSite = sites.find(s => s.id === emp.teamLeaderSiteId);
                               return leadSite ? (
                                 <p className="text-[10px] text-amber-400/70">Leads: {leadSite.name}</p>
+                              ) : null;
+                            })()}
+                            {emp.isSupervisor && emp.supervisorSiteId && (() => {
+                              const superSite = sites.find(s => s.id === emp.supervisorSiteId);
+                              return superSite ? (
+                                <p className="text-[10px] text-blue-400/70">Supervises: {superSite.name}</p>
                               ) : null;
                             })()}
                           </div>
@@ -1106,12 +1123,21 @@ export function EmployeePage() {
                           {emp.isTeamLeader && (
                             <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                           )}
+                          {emp.isSupervisor && (
+                            <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                          )}
                         </div>
                         <p className="text-xs text-slate-500 font-mono">{emp.employeeId}</p>
                         {emp.isTeamLeader && emp.teamLeaderSiteId && (() => {
                           const leadSite = sites.find(s => s.id === emp.teamLeaderSiteId);
                           return leadSite ? (
                             <p className="text-[10px] text-amber-400/70">Leads: {leadSite.name}</p>
+                          ) : null;
+                        })()}
+                        {emp.isSupervisor && emp.supervisorSiteId && (() => {
+                          const superSite = sites.find(s => s.id === emp.supervisorSiteId);
+                          return superSite ? (
+                            <p className="text-[10px] text-blue-400/70">Supervises: {superSite.name}</p>
                           ) : null;
                         })()}
                       </div>
@@ -1486,12 +1512,12 @@ export function EmployeePage() {
                 {/* Team Leader Section */}
                 <div className="space-y-3">
                   <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-                    <Crown className="h-4 w-4" />
+                    <Crown className="h-4 w-4 text-amber-400" />
                     Team Leader
                   </h4>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
                     <div>
-                      <Label className="text-slate-300 text-sm">Team Leader</Label>
+                      <Label className="text-slate-300 text-sm">Team Leader Role</Label>
                       <p className="text-xs text-slate-500">Designate this employee as a team leader</p>
                     </div>
                     <Switch
@@ -1526,7 +1552,55 @@ export function EmployeePage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-slate-500">Select the site this employee is the team leader of.</p>
+                    </div>
+                  )}
+                </div>
+
+                <Separator className="bg-slate-700/50" />
+
+                {/* Supervisor Section */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
+                    <ShieldCheck className="h-4 w-4 text-blue-400" />
+                    Supervisor
+                  </h4>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-slate-900/50 border border-slate-700/50">
+                    <div>
+                      <Label className="text-slate-300 text-sm">Supervisor Role</Label>
+                      <p className="text-xs text-slate-500">Designate this employee as a supervisor</p>
+                    </div>
+                    <Switch
+                      checked={formData.isSupervisor}
+                      onCheckedChange={(checked) => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          isSupervisor: checked,
+                          supervisorSiteId: checked ? prev.supervisorSiteId : '',
+                        }));
+                      }}
+                    />
+                  </div>
+                  {formData.isSupervisor && (
+                    <div className="space-y-2">
+                      <Label className="text-slate-300 text-sm">Supervised Site</Label>
+                      <Select
+                        value={formData.supervisorSiteId || '__none__'}
+                        onValueChange={(v) => {
+                          handleFormChange('supervisorSiteId', v === '__none__' ? '' : v);
+                        }}
+                      >
+                        <SelectTrigger className="bg-slate-900 border-slate-600 text-white w-full">
+                          <SelectValue placeholder="Select which site they supervise" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-slate-800 border-slate-700">
+                          <SelectItem value="__none__">
+                            <span className="text-slate-500">No specific site</span>
+                          </SelectItem>
+                          {sites.map((s) => (
+                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                 </div>
@@ -1696,6 +1770,12 @@ export function EmployeePage() {
                             Team Leader
                           </Badge>
                         )}
+                        {viewingEmployee.isSupervisor && (
+                          <Badge className="bg-blue-500/15 text-blue-400 border-blue-500/25 text-[10px] px-1.5 py-0 shrink-0">
+                            <ShieldCheck className="h-2.5 w-2.5 mr-0.5" />
+                            Supervisor
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-sm text-slate-400 font-mono">{viewingEmployee.employeeId}</p>
                       <div className="mt-1">
@@ -1776,13 +1856,21 @@ export function EmployeePage() {
                         { icon: Briefcase, label: 'Position', value: viewingEmployee.position },
                         { icon: Calendar, label: 'Join Date', value: viewingEmployee.joinDate ? new Date(viewingEmployee.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null },
                         { icon: Building2, label: 'Company', value: viewingEmployee.companyName },
-                        { icon: Building2, label: 'Current Site', value: viewingEmployee.currentSite, special: viewingEmployee.currentSite === 'Idle' ? 'amber' : undefined },
-                      ].map((item) => (
+                        { icon: Building2, label: 'Current Site', value: viewingEmployee.currentSite === 'Idle' ? '🟡 Idle' : viewingEmployee.currentSite, special: viewingEmployee.currentSite === 'Idle' ? 'amber' : null },
+                        ...(viewingEmployee.isTeamLeader ? [{ icon: Crown, label: 'Leads Site', value: sites.find(s => s.id === viewingEmployee.teamLeaderSiteId)?.name || 'No specific site', special: 'amber' as const }] : []),
+                        ...(viewingEmployee.isSupervisor ? [{ icon: ShieldCheck, label: 'Supervises Site', value: sites.find(s => s.id === viewingEmployee.supervisorSiteId)?.name || 'No specific site', special: 'blue' as const }] : []),
+                      ].map((item: any) => (
                         <div key={item.label} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/50">
-                          <item.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${item.special === 'amber' ? 'text-amber-400' : 'text-slate-500'}`} />
+                          <item.icon className={cn(
+                            "h-4 w-4 mt-0.5 flex-shrink-0",
+                            item.special === 'amber' ? 'text-amber-400' : item.special === 'blue' ? 'text-blue-400' : 'text-slate-500'
+                          )} />
                           <div>
                             <p className="text-xs text-slate-500">{item.label}</p>
-                            <p className={`text-sm ${item.special === 'amber' ? 'text-amber-400' : 'text-slate-200'}`}>
+                            <p className={cn(
+                              "text-sm",
+                              item.special === 'amber' ? 'text-amber-400' : item.special === 'blue' ? 'text-blue-400' : 'text-slate-200'
+                            )}>
                               {item.value || '—'}
                             </p>
                           </div>
