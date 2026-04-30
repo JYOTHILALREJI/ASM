@@ -48,6 +48,8 @@ model Employee {
   photo            String?
   isTeamLeader     Boolean   @default(false)
   teamLeaderSiteId String?
+  isSupervisor     Boolean   @default(false)
+  supervisorSiteId String?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 

@@ -118,6 +118,8 @@ interface Employee {
   idNumber: string | null;
   isTeamLeader: boolean;
   teamLeaderSiteId: string | null;
+  isSupervisor: boolean;
+  supervisorSiteId: string | null;
 }
 
 interface Site {
@@ -807,6 +809,8 @@ export function UniformRegistryPage() {
       idNumber: null,
       isTeamLeader: false,
       teamLeaderSiteId: null,
+      isSupervisor: false,
+      supervisorSiteId: null,
     };
 
     setSelectedEmployee(emp);

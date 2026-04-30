@@ -17,6 +17,7 @@ import {
   X,
   Loader2,
   Crown,
+  ShieldCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,6 +79,8 @@ interface SiteEmployee {
   photo: string | null;
   isTeamLeader: boolean;
   teamLeaderSiteId: string | null;
+  isSupervisor: boolean;
+  supervisorSiteId: string | null;
 }
 
 interface AllEmployee {
@@ -418,10 +421,17 @@ export function SitesPage() {
   const [showDeleteEmpDialog, setShowDeleteEmpDialog] = useState(false);
   const [deleteEmpLoading, setDeleteEmpLoading] = useState(false);
 
-  // Add employee state
   const [allEmployees, setAllEmployees] = useState<AllEmployee[]>([]);
   const [loadingAllEmployees, setLoadingAllEmployees] = useState(false);
   const [addingEmployee, setAddingEmployee] = useState(false);
+
+  // Role management state
+  const [roleLoading, setRoleLoading] = useState<string | null>(null);
+  const [roleConfirmOpen, setRoleConfirmOpen] = useState(false);
+  const [pendingRoleUpdate, setPendingRoleUpdate] = useState<{
+    employee: SiteEmployee;
+    role: 'teamLeader' | 'supervisor';
+  } | null>(null);
 
   /* ── Fetch sites ── */
   const fetchSites = useCallback(async () => {
@@ -614,7 +624,67 @@ export function SitesPage() {
     }
   }, [selectedEmps, viewSite, fetchSiteEmployees, fetchAllEmployees, fetchSites]);
 
-  /* ── Add employee to site ── */
+  /* ── Toggle Employee Role ── */
+  const handleToggleRole = useCallback(async (employee: SiteEmployee, role: 'teamLeader' | 'supervisor') => {
+    if (!viewSite) return;
+
+    const isCurrentRole = role === 'teamLeader' ? employee.isTeamLeader : employee.isSupervisor;
+    const roleField = role === 'teamLeader' ? 'isTeamLeader' : 'isSupervisor';
+    const siteIdField = role === 'teamLeader' ? 'teamLeaderSiteId' : 'supervisorSiteId';
+
+    // If setting as role, check for existing
+    if (!isCurrentRole) {
+      const existing = siteEmployees.find((e) => role === 'teamLeader' ? e.isTeamLeader : e.isSupervisor);
+      if (existing && existing.id !== employee.id) {
+        setPendingRoleUpdate({ employee, role });
+        setRoleConfirmOpen(true);
+        return;
+      }
+    }
+
+    await doUpdateRole(employee, role, !isCurrentRole);
+  }, [viewSite, siteEmployees]);
+
+  const doUpdateRole = useCallback(async (employee: SiteEmployee, role: 'teamLeader' | 'supervisor', value: boolean) => {
+    if (!viewSite) return;
+    setRoleLoading(`${employee.id}-${role}`);
+    try {
+      const roleField = role === 'teamLeader' ? 'isTeamLeader' : 'isSupervisor';
+      const siteIdField = role === 'teamLeader' ? 'teamLeaderSiteId' : 'supervisorSiteId';
+
+      // If we are setting this employee as the new role, first remove it from anyone else in this site
+      if (value) {
+        const existing = siteEmployees.find((e) => role === 'teamLeader' ? e.isTeamLeader : e.isSupervisor);
+        if (existing && existing.id !== employee.id) {
+          await fetch(`/api/employees/${existing.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ [roleField]: false, [siteIdField]: null }),
+          });
+        }
+      }
+
+      const res = await fetch(`/api/employees/${employee.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [roleField]: value, [siteIdField]: value ? viewSite.id : null }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: 'Role Updated',
+          description: `${employee.fullName} is ${value ? 'now' : 'no longer'} a ${role === 'teamLeader' ? 'Team Leader' : 'Supervisor'}.`,
+        });
+        fetchSiteEmployees(viewSite.name);
+      } else {
+        toast({ title: 'Error', description: json.error || 'Failed to update role', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update role', variant: 'destructive' });
+    } finally {
+      setRoleLoading(null);
+    }
+  }, [viewSite, siteEmployees, fetchSiteEmployees]);
   const handleAddEmployee = useCallback(async (employee: AllEmployee) => {
     if (!viewSite) return;
     try {
@@ -668,13 +738,19 @@ export function SitesPage() {
         (e.nationality && e.nationality.toLowerCase().includes(q))
       );
     });
-    // Sort: team leaders of the current site first
+    // Sort: team leaders first, then supervisors
     const siteName = viewSite?.name;
     return filtered.sort((a, b) => {
       const aIsLeader = a.isTeamLeader && a.currentSite === siteName;
       const bIsLeader = b.isTeamLeader && b.currentSite === siteName;
       if (aIsLeader && !bIsLeader) return -1;
       if (!aIsLeader && bIsLeader) return 1;
+
+      const aIsSuper = a.isSupervisor && a.currentSite === siteName;
+      const bIsSuper = b.isSupervisor && b.currentSite === siteName;
+      if (aIsSuper && !bIsSuper) return -1;
+      if (!aIsSuper && bIsSuper) return 1;
+
       return 0;
     });
   }, [siteEmployees, empSearch, viewSite]);
@@ -737,15 +813,29 @@ export function SitesPage() {
                   const leader = siteEmployees.find(
                     (e) => e.isTeamLeader && e.currentSite === viewSite.name
                   );
-                  return leader ? (
-                    <div className="flex items-center gap-1.5 mt-1">
-                      <Crown className="h-3.5 w-3.5 text-amber-400" />
-                      <span className="text-sm text-amber-400 font-medium">Team Leader: {leader.fullName}</span>
+                  const supervisor = siteEmployees.find(
+                    (e) => e.isSupervisor && e.currentSite === viewSite.name
+                  );
+                  return (
+                    <div className="flex flex-col gap-1 mt-1">
+                      {leader && (
+                        <div className="flex items-center gap-1.5">
+                          <Crown className="h-3.5 w-3.5 text-amber-400" />
+                          <span className="text-sm text-amber-400 font-medium">Team Leader: {leader.fullName}</span>
+                        </div>
+                      )}
+                      {supervisor && (
+                        <div className="flex items-center gap-1.5">
+                          <ShieldCheck className="h-3.5 w-3.5 text-blue-400" />
+                          <span className="text-sm text-blue-400 font-medium">Supervisor: {supervisor.fullName}</span>
+                        </div>
+                      )}
+                      {!leader && !supervisor && (
+                        <p className="text-sm text-slate-500 mt-0.5">
+                          Created {new Date(viewSite.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      )}
                     </div>
-                  ) : (
-                    <p className="text-sm text-slate-500 mt-0.5">
-                      Created {new Date(viewSite.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-                    </p>
                   );
                 })()}
               </div>
@@ -820,6 +910,7 @@ export function SitesPage() {
                         <TableHead className="text-slate-400 font-semibold">Employee</TableHead>
                         <TableHead className="text-slate-400 font-semibold">ID</TableHead>
                         <TableHead className="text-slate-400 font-semibold">Position</TableHead>
+                        <TableHead className="text-slate-400 font-semibold">Roles</TableHead>
                         <TableHead className="text-slate-400 font-semibold">Rating</TableHead>
                         <TableHead className="text-slate-400 font-semibold text-center">Status</TableHead>
                       </TableRow>
@@ -856,6 +947,9 @@ export function SitesPage() {
                                   {emp.isTeamLeader && emp.currentSite === viewSite.name && (
                                     <Crown className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                                   )}
+                                  {emp.isSupervisor && emp.currentSite === viewSite.name && (
+                                    <ShieldCheck className="h-3.5 w-3.5 text-blue-400 shrink-0" />
+                                  )}
                                 </div>
                                 {emp.nationality && (
                                   <p className="text-xs text-slate-500">{emp.nationality}</p>
@@ -866,6 +960,48 @@ export function SitesPage() {
                           <TableCell className="text-slate-300 text-sm font-mono">{emp.employeeId}</TableCell>
                           <TableCell className="text-slate-300 text-sm">
                             {emp.position || <span className="text-slate-600">—</span>}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1.5">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleRole(emp, 'teamLeader')}
+                                className={cn(
+                                  'h-8 px-2 text-[10px] gap-1 transition-all',
+                                  emp.isTeamLeader && emp.currentSite === viewSite.name
+                                    ? 'bg-amber-500/15 text-amber-400 hover:bg-amber-500/20 hover:text-amber-300 border border-amber-500/25'
+                                    : 'text-slate-500 hover:text-amber-400 hover:bg-amber-500/10'
+                                )}
+                                disabled={roleLoading === `${emp.id}-teamLeader`}
+                              >
+                                {roleLoading === `${emp.id}-teamLeader` ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Crown className="h-3 w-3" />
+                                )}
+                                Leader
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleToggleRole(emp, 'supervisor')}
+                                className={cn(
+                                  'h-8 px-2 text-[10px] gap-1 transition-all',
+                                  emp.isSupervisor && emp.currentSite === viewSite.name
+                                    ? 'bg-blue-500/15 text-blue-400 hover:bg-blue-500/20 hover:text-blue-300 border border-blue-500/25'
+                                    : 'text-slate-500 hover:text-blue-400 hover:bg-blue-500/10'
+                                )}
+                                disabled={roleLoading === `${emp.id}-supervisor`}
+                              >
+                                {roleLoading === `${emp.id}-supervisor` ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <ShieldCheck className="h-3 w-3" />
+                                )}
+                                Super
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell>
                             <StarRating rating={emp.rating} />
@@ -1019,6 +1155,60 @@ export function SitesPage() {
             </Button>
             <Button variant="destructive" onClick={handleDeleteEmployees} disabled={deleteEmpLoading}>
               {deleteEmpLoading ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* Role Change Confirmation Dialog */}
+      <Dialog
+        open={roleConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRoleConfirmOpen(false);
+            setPendingRoleUpdate(null);
+          }
+        }}
+      >
+        <DialogContent className="bg-slate-800 border-slate-700 text-slate-200">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-white">
+              {pendingRoleUpdate?.role === 'teamLeader' ? (
+                <Crown className="h-5 w-5 text-amber-400" />
+              ) : (
+                <ShieldCheck className="h-5 w-5 text-blue-400" />
+              )}
+              Change {pendingRoleUpdate?.role === 'teamLeader' ? 'Team Leader' : 'Supervisor'}?
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              There is already a {pendingRoleUpdate?.role === 'teamLeader' ? 'team leader' : 'supervisor'} assigned to this site. 
+              Are you sure you want to replace them with <span className="text-white font-semibold">{pendingRoleUpdate?.employee.fullName}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setRoleConfirmOpen(false);
+                setPendingRoleUpdate(null);
+              }}
+              className="text-slate-400 hover:text-white"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                if (pendingRoleUpdate) {
+                  doUpdateRole(pendingRoleUpdate.employee, pendingRoleUpdate.role, true);
+                  setRoleConfirmOpen(false);
+                  setPendingRoleUpdate(null);
+                }
+              }}
+              className={cn(
+                "text-white",
+                pendingRoleUpdate?.role === 'teamLeader' ? "bg-amber-600 hover:bg-amber-700" : "bg-blue-600 hover:bg-blue-700"
+              )}
+            >
+              Confirm Change
             </Button>
           </DialogFooter>
         </DialogContent>

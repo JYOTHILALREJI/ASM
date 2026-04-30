@@ -99,6 +99,7 @@ export async function PUT(
       'fullName', 'nationality', 'phone', 'email', 'address',
       'emergencyContact', 'position', 'companyName', 'passportStatus',
       'idStatus', 'currentSite', 'photo', 'status',
+      'isTeamLeader', 'teamLeaderSiteId', 'isSupervisor', 'supervisorSiteId',
     ];
 
     for (const field of updatableFields) {
