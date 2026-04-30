@@ -15,6 +15,7 @@ import { AdminPage } from '@/components/admins/admin-page';
 import { SitesPage } from '@/components/sites/sites-page';
 import { LeaveRequestPage } from '@/components/leave-requests/leave-request-page';
 import { CancellationRequestPage } from '@/components/cancellation-requests/cancellation-request-page';
+import { UniformRegistryPage } from '@/components/uniform-registry/uniform-registry-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -61,6 +62,8 @@ function MainLayout() {
         return <SitesPage />;
       case 'attendance':
         return <AttendancePage />;
+      case 'uniform_registry':
+        return <UniformRegistryPage />;
       case 'leave_requests':
         return <LeaveRequestPage />;
       case 'cancellation_requests':
@@ -107,8 +110,6 @@ export default function Home() {
     if (hasChecked.current) return;
     hasChecked.current = true;
 
-    // Try to restore session from localStorage
-
     let cancelled = false;
 
     (async () => {
@@ -128,7 +129,6 @@ export default function Home() {
             const parsed = JSON.parse(stored);
             setUser(parsed);
           } catch {
-            // invalid stored data, clear it
             localStorage.removeItem('asm_user');
           }
         }
@@ -136,7 +136,7 @@ export default function Home() {
         setLoading(false);
       } catch {
         if (cancelled) return;
-        setHasUsers(true); // assume users exist on error
+        setHasUsers(true);
         setLoading(false);
       }
     })();
