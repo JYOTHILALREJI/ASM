@@ -15,10 +15,18 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (search) {
-      const orConditions: Record<string, unknown>[] = [
-        { employeeName: { contains: search } },
-        { documentNumber: { contains: search } },
+      const orConditions: any[] = [
+        { employeeName: { contains: search, mode: 'insensitive' } },
+        { documentNumber: { contains: search, mode: 'insensitive' } },
+        { siteName: { contains: search, mode: 'insensitive' } },
+        { teamLeaderName: { contains: search, mode: 'insensitive' } },
+        {
+          employee: {
+            employeeId: { contains: search, mode: 'insensitive' },
+          },
+        },
       ];
+
       const tokenNum = parseInt(search, 10);
       if (!isNaN(tokenNum)) {
         orConditions.push({ tokenNumber: tokenNum });
