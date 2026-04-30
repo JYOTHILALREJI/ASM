@@ -645,7 +645,7 @@ export function UniformRegistryPage() {
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ── Fetch entries ── */
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = useCallback(async (signal?: AbortSignal) => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams({
@@ -655,14 +655,15 @@ export function UniformRegistryPage() {
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (siteFilter && siteFilter !== 'all') params.set('siteName', siteFilter);
 
-      const res = await fetch(`/api/uniform-registry?${params}`);
+      const res = await fetch(`/api/uniform-registry?${params}`, { signal });
       const json = await res.json();
       if (json.success && json.data) {
         setEntries(json.data.entries || []);
         setTotal(json.data.total);
         setTotalPages(json.data.totalPages);
       }
-    } catch {
+    } catch (err: any) {
+      if (err.name === 'AbortError') return;
       toast({ title: 'Error', description: 'Failed to fetch uniform registry entries', variant: 'destructive' });
     } finally {
       setIsLoading(false);
@@ -751,7 +752,9 @@ export function UniformRegistryPage() {
 
   /* ── Effects ── */
   useEffect(() => {
-    fetchEntries();
+    const controller = new AbortController();
+    fetchEntries(controller.signal);
+    return () => controller.abort();
   }, [fetchEntries]);
 
   useEffect(() => {
