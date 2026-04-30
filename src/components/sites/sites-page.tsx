@@ -872,13 +872,12 @@ export function SitesPage() {
                           </TableCell>
                           <TableCell className="text-center">
                             <Badge
-                              className={`text-xs ${
-                                emp.status === 'active'
+                              className={`text-xs ${emp.status === 'active'
                                   ? 'bg-green-500/10 text-green-400 border-green-500/20'
                                   : emp.status === 'pending_deletion'
-                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
-                                  : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
-                              }`}
+                                    ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                                    : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                                }`}
                             >
                               {emp.status === 'pending_deletion' ? 'Pending' : emp.status}
                             </Badge>
