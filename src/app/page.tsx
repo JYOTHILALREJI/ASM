@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/store/auth-store';
-import { useAppStore } from '@/store/app-store';
+import { useAppStore, type AppView } from '@/store/app-store';
 import { AppSidebar } from '@/components/layout/app-sidebar';
 import { AppHeader } from '@/components/layout/app-header';
 import { LoginPage } from '@/components/auth/login-page';
@@ -48,11 +48,27 @@ function LoadingScreen() {
   );
 }
 
+// Views accessible by normal admins
+const ADMIN_ALLOWED_VIEWS: AppView[] = ['dashboard', 'uniform_registry'];
+
 function MainLayout() {
-  const { currentView } = useAppStore();
+  const { currentView, setCurrentView } = useAppStore();
+  const { user } = useAuthStore();
   const isMobile = useIsMobile();
 
+  // Redirect normal admins away from restricted views
+  React.useEffect(() => {
+    if (user && user.role === 'admin' && !ADMIN_ALLOWED_VIEWS.includes(currentView)) {
+      setCurrentView('dashboard');
+    }
+  }, [user, currentView, setCurrentView]);
+
   const renderView = () => {
+    // Block normal admins from accessing restricted views
+    if (user && user.role === 'admin' && !ADMIN_ALLOWED_VIEWS.includes(currentView)) {
+      return <DashboardPage />;
+    }
+
     switch (currentView) {
       case 'dashboard':
         return <DashboardPage />;
