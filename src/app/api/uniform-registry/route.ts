@@ -83,6 +83,9 @@ export async function GET(request: NextRequest) {
     // If searching, we show BOTH unless a type is explicitly forced to something other than 'all'
     const registryType = search ? (searchParams.get('type') || 'all') : type;
     
+    // Always hide records for deleted employees
+    where.employee = { status: { not: 'deleted' } };
+    
     if (registryType === 'active') {
       where.renewalDate = { gt: now };
     } else if (registryType === 'expired') {
@@ -104,6 +107,7 @@ export async function GET(request: NextRequest) {
               isTeamLeader: true,
               currentSite: true,
               photo: true,
+              status: true,
             },
           },
         },

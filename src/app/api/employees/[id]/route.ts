@@ -176,7 +176,14 @@ export async function DELETE(
 
     const employee = await db.employee.update({
       where: { id },
-      data: { status: 'deleted' },
+      data: { 
+        status: 'deleted',
+        currentSite: null,
+        isTeamLeader: false,
+        teamLeaderSiteId: null,
+        isSupervisor: false,
+        supervisorSiteId: null
+      },
     });
 
     return NextResponse.json({

@@ -54,6 +54,9 @@ export async function GET(request: NextRequest) {
 
     if (status && status !== 'all') {
       where.status = status;
+    } else if (status === 'all') {
+      // If 'all' is explicitly requested, we show everything including deleted
+      delete where.status;
     }
 
     const siteFilter = searchParams.get('site') || '';

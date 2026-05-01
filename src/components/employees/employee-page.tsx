@@ -147,8 +147,8 @@ function SearchableNationalitySelect({
 
   const filtered = search
     ? NATIONALITIES.filter((n) =>
-        n.toLowerCase().includes(search.toLowerCase())
-      )
+      n.toLowerCase().includes(search.toLowerCase())
+    )
     : NATIONALITIES;
 
   useEffect(() => {
@@ -349,6 +349,13 @@ function StatusBadge({ status }: { status: string }) {
     return (
       <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 hover:bg-amber-500/20">
         Pending Deletion
+      </Badge>
+    );
+  }
+  if (status === 'deleted') {
+    return (
+      <Badge className="bg-red-500/15 text-red-400 border-red-500/25 hover:bg-red-500/20">
+        Deleted
       </Badge>
     );
   }
@@ -817,6 +824,28 @@ export function EmployeePage() {
     }
   };
 
+  const handleRestore = async (employee: Employee) => {
+    try {
+      const res = await fetch(`/api/employees/${employee.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'active' }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        toast({
+          title: 'Employee Restored',
+          description: `${employee.fullName} has been restored to active status.`,
+        });
+        fetchEmployees();
+      } else {
+        toast({ title: 'Error', description: json.error || 'Failed to restore employee', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Something went wrong', variant: 'destructive' });
+    }
+  };
+
   const handleWhatsApp = (employee: Employee) => {
     const phone = employee.phone?.replace(/[^0-9]/g, '');
     if (phone) {
@@ -966,6 +995,7 @@ export function EmployeePage() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="pending_deletion">Pending Deletion</SelectItem>
+                  <SelectItem value="deleted">Recycle Bin</SelectItem>
                 </SelectContent>
               </Select>
               {hasFilters && (
@@ -1087,16 +1117,28 @@ export function EmployeePage() {
                           >
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {emp.status !== 'pending_deletion' && (
+                          {emp.status === 'deleted' ? (
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
-                              onClick={() => openDeleteDialog(emp)}
-                              title="Delete"
+                              className="h-8 w-8 text-slate-400 hover:text-green-400 hover:bg-green-500/10"
+                              onClick={() => handleRestore(emp)}
+                              title="Restore"
                             >
-                              <Trash2 className="h-4 w-4" />
+                              <RotateCcw className="h-4 w-4" />
                             </Button>
+                          ) : (
+                            emp.status !== 'pending_deletion' && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                                onClick={() => openDeleteDialog(emp)}
+                                title="Delete"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )
                           )}
                         </div>
                       </TableCell>
@@ -1179,15 +1221,26 @@ export function EmployeePage() {
                       >
                         <Pencil className="h-4 w-4" />
                       </Button>
-                      {emp.status !== 'pending_deletion' && (
+                      {emp.status === 'deleted' ? (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-red-400"
-                          onClick={() => openDeleteDialog(emp)}
+                          className="h-8 w-8 text-slate-400 hover:text-green-400"
+                          onClick={() => handleRestore(emp)}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <RotateCcw className="h-4 w-4" />
                         </Button>
+                      ) : (
+                        emp.status !== 'pending_deletion' && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-slate-400 hover:text-red-400"
+                            onClick={() => openDeleteDialog(emp)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )
                       )}
                     </div>
                   </div>
@@ -1630,10 +1683,10 @@ export function EmployeePage() {
                         </SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
                           <SelectItem value="Valid">
-                            <span className="text-green-400">✓ Valid</span>
+                            <span className="text-green-400">With Employee</span>
                           </SelectItem>
                           <SelectItem value="Expired">
-                            <span className="text-red-400">✗ Expired</span>
+                            <span className="text-red-400">With Company</span>
                           </SelectItem>
                           <SelectItem value="N/A">
                             <span className="text-slate-400">N/A</span>
@@ -1659,10 +1712,10 @@ export function EmployeePage() {
                         </SelectTrigger>
                         <SelectContent className="bg-slate-800 border-slate-700">
                           <SelectItem value="Valid">
-                            <span className="text-green-400">✓ Valid</span>
+                            <span className="text-green-400">With Employee</span>
                           </SelectItem>
                           <SelectItem value="Expired">
-                            <span className="text-red-400">✗ Expired</span>
+                            <span className="text-red-400">With Company</span>
                           </SelectItem>
                           <SelectItem value="N/A">
                             <span className="text-slate-400">N/A</span>
@@ -1921,13 +1974,12 @@ export function EmployeePage() {
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-xs text-slate-500">Passport Number</p>
                           {viewingEmployee.passportStatus && (
-                            <Badge className={`text-[10px] px-1.5 py-0 ${
-                              viewingEmployee.passportStatus === 'Valid'
+                            <Badge className={`text-[10px] px-1.5 py-0 ${viewingEmployee.passportStatus === 'Valid'
                                 ? 'bg-green-500/15 text-green-400 border-green-500/25'
                                 : viewingEmployee.passportStatus === 'Expired'
                                   ? 'bg-red-500/15 text-red-400 border-red-500/25'
                                   : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
-                            }`}>
+                              }`}>
                               {viewingEmployee.passportStatus}
                             </Badge>
                           )}
@@ -1938,13 +1990,12 @@ export function EmployeePage() {
                         <div className="flex items-center justify-between mb-1">
                           <p className="text-xs text-slate-500">ID Number</p>
                           {viewingEmployee.idStatus && (
-                            <Badge className={`text-[10px] px-1.5 py-0 ${
-                              viewingEmployee.idStatus === 'Valid'
+                            <Badge className={`text-[10px] px-1.5 py-0 ${viewingEmployee.idStatus === 'Valid'
                                 ? 'bg-green-500/15 text-green-400 border-green-500/25'
                                 : viewingEmployee.idStatus === 'Expired'
                                   ? 'bg-red-500/15 text-red-400 border-red-500/25'
                                   : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
-                            }`}>
+                              }`}>
                               {viewingEmployee.idStatus}
                             </Badge>
                           )}
