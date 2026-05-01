@@ -79,6 +79,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -248,7 +253,9 @@ function EmployeeCombobox({
     return employees.filter(
       (e) =>
         e.fullName.toLowerCase().includes(q) ||
-        e.employeeId.toLowerCase().includes(q)
+        e.employeeId.toLowerCase().includes(q) ||
+        (e.idNumber && e.idNumber.toLowerCase().includes(q)) ||
+        (e.passportNumber && e.passportNumber.toLowerCase().includes(q))
     );
   }, [employees, filter]);
 
@@ -291,7 +298,7 @@ function EmployeeCombobox({
               {filtered.map((emp) => (
                 <CommandItem
                   key={emp.id}
-                  value={`${emp.fullName} ${emp.employeeId}`}
+                  value={`${emp.fullName} ${emp.employeeId} ${emp.idNumber || ''} ${emp.passportNumber || ''}`}
                   onSelect={() => {
                     onSelect(emp);
                     setOpen(false);
@@ -431,7 +438,9 @@ function TeamLeaderCombobox({
     return employees.filter(
       (e) =>
         e.fullName.toLowerCase().includes(q) ||
-        e.employeeId.toLowerCase().includes(q)
+        e.employeeId.toLowerCase().includes(q) ||
+        (e.idNumber && e.idNumber.toLowerCase().includes(q)) ||
+        (e.passportNumber && e.passportNumber.toLowerCase().includes(q))
     );
   }, [employees, filter, currentTeamLeader, isChanging]);
 
@@ -494,7 +503,7 @@ function TeamLeaderCombobox({
                 {filtered.map((emp) => (
                   <CommandItem
                     key={emp.id}
-                    value={`${emp.fullName} ${emp.employeeId}`}
+                    value={`${emp.fullName} ${emp.employeeId} ${emp.idNumber || ''} ${emp.passportNumber || ''}`}
                     onSelect={() => {
                       onSelect(emp);
                       setOpen(false);
@@ -604,6 +613,7 @@ export function UniformRegistryPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [siteFilter, setSiteFilter] = useState<string>('all');
+  const [registryType, setRegistryType] = useState<string>('active');
   const [sites, setSites] = useState<Site[]>([]);
 
   // Create dialog state
@@ -654,6 +664,7 @@ export function UniformRegistryPage() {
       });
       if (debouncedSearch) params.set('search', debouncedSearch);
       if (siteFilter && siteFilter !== 'all') params.set('siteName', siteFilter);
+      params.set('type', registryType);
 
       const res = await fetch(`/api/uniform-registry?${params}`, { signal });
       const json = await res.json();
@@ -668,7 +679,7 @@ export function UniformRegistryPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [page, debouncedSearch, siteFilter]);
+  }, [page, debouncedSearch, siteFilter, registryType]);
 
   /* ── Fetch sites ── */
   const fetchSites = useCallback(async () => {
@@ -1092,10 +1103,11 @@ export function UniformRegistryPage() {
   const resetFilters = () => {
     setSearchQuery('');
     setSiteFilter('all');
+    setRegistryType('active');
     setPage(1);
   };
 
-  const hasFilters = debouncedSearch || siteFilter !== 'all';
+  const hasFilters = debouncedSearch || siteFilter !== 'all' || registryType !== 'active';
 
   /* ── Pagination ── */
   const renderPagination = () => {
@@ -1253,6 +1265,41 @@ export function UniformRegistryPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Registry Tabs */}
+      {!debouncedSearch && (
+        <Tabs value={registryType} onValueChange={setRegistryType} className="w-full">
+          <TabsList className="bg-slate-800 border border-slate-700 p-1 h-11 w-full sm:w-auto">
+            <TabsTrigger
+              value="active"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 px-6"
+            >
+              Active Registry
+            </TabsTrigger>
+            <TabsTrigger
+              value="expired"
+              className="data-[state=active]:bg-blue-600 data-[state=active]:text-white text-slate-400 px-6"
+            >
+              Expired Registry
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      )}
+
+      {/* Search Results Summary */}
+      {debouncedSearch && (
+        <div className="flex items-center justify-between bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-blue-400" />
+            <span className="text-sm text-blue-200">
+              Showing results for <span className="font-semibold text-white">"{debouncedSearch}"</span>
+            </span>
+          </div>
+          <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
+            {total} results found
+          </Badge>
+        </div>
+      )}
 
       {/* Table */}
       <Card className="bg-slate-800 border-slate-700 rounded-xl overflow-hidden">

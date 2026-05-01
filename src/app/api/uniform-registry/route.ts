@@ -1,20 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { decrypt } from '@/lib/crypto';
+
 
 // GET /api/uniform-registry - List all uniform registry entries
+
+// Helper: decrypt sensitive fields on read
+function decryptEmployee(employee: any) {
+  if (employee.passportNumber) {
+    try {
+      employee.passportNumber = decrypt(employee.passportNumber);
+    } catch {
+      // ignore
+    }
+  }
+  if (employee.idNumber) {
+    try {
+      employee.idNumber = decrypt(employee.idNumber);
+    } catch {
+      // ignore
+    }
+  }
+  return employee;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const search = (searchParams.get('search') || '').trim();
     const siteName = searchParams.get('siteName') || '';
+    const type = searchParams.get('type') || 'active'; // 'active', 'expired', or 'all'
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const limit = parseInt(searchParams.get('limit') || '10', 10);
     const skip = (page - 1) * limit;
 
+    const now = new Date();
+
     // Build where clause
-    const where: Record<string, unknown> = {};
+    const where: Record<string, any> = {};
 
     if (search) {
+      // 1. Find employees that match search in their decrypted fields (ID/Passport)
+      // This is necessary because these fields are encrypted with random IV in the DB
+      const allEmployees = await db.employee.findMany({
+        where: { status: { not: 'deleted' } },
+        select: { id: true, idNumber: true, passportNumber: true, employeeId: true, fullName: true }
+      });
+
+      const matchingEmployeeIds = allEmployees
+        .map(emp => decryptEmployee(emp))
+        .filter(emp => 
+          (emp.idNumber && emp.idNumber.toLowerCase().includes(search.toLowerCase())) ||
+          (emp.passportNumber && emp.passportNumber.toLowerCase().includes(search.toLowerCase())) ||
+          (emp.fullName.toLowerCase().includes(search.toLowerCase())) ||
+          (emp.employeeId.toLowerCase().includes(search.toLowerCase()))
+        )
+        .map(emp => emp.id);
+
       const orConditions: any[] = [
         { employeeName: { contains: search, mode: 'insensitive' } },
         { documentNumber: { contains: search, mode: 'insensitive' } },
@@ -26,11 +68,25 @@ export async function GET(request: NextRequest) {
         },
       ];
 
+      if (matchingEmployeeIds.length > 0) {
+        orConditions.push({ employeeId: { in: matchingEmployeeIds } });
+      }
+
       const tokenNum = parseInt(search, 10);
       if (!isNaN(tokenNum)) {
         orConditions.push({ tokenNumber: tokenNum });
       }
       where.OR = orConditions;
+    }
+
+    // Apply Active/Expired filter ONLY if not searching, or if explicitly requested
+    // If searching, we show BOTH unless a type is explicitly forced to something other than 'all'
+    const registryType = search ? (searchParams.get('type') || 'all') : type;
+    
+    if (registryType === 'active') {
+      where.renewalDate = { gt: now };
+    } else if (registryType === 'expired') {
+      where.renewalDate = { lte: now };
     }
 
     if (siteName) {
