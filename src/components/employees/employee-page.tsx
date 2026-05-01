@@ -1975,10 +1975,10 @@ export function EmployeePage() {
                           <p className="text-xs text-slate-500">Passport Number</p>
                           {viewingEmployee.passportStatus && (
                             <Badge className={`text-[10px] px-1.5 py-0 ${viewingEmployee.passportStatus === 'Valid'
-                                ? 'bg-green-500/15 text-green-400 border-green-500/25'
-                                : viewingEmployee.passportStatus === 'Expired'
-                                  ? 'bg-red-500/15 text-red-400 border-red-500/25'
-                                  : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
+                              ? 'bg-green-500/15 text-green-400 border-green-500/25'
+                              : viewingEmployee.passportStatus === 'Expired'
+                                ? 'bg-red-500/15 text-red-400 border-red-500/25'
+                                : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
                               }`}>
                               {viewingEmployee.passportStatus}
                             </Badge>
@@ -1991,10 +1991,10 @@ export function EmployeePage() {
                           <p className="text-xs text-slate-500">ID Number</p>
                           {viewingEmployee.idStatus && (
                             <Badge className={`text-[10px] px-1.5 py-0 ${viewingEmployee.idStatus === 'Valid'
-                                ? 'bg-green-500/15 text-green-400 border-green-500/25'
-                                : viewingEmployee.idStatus === 'Expired'
-                                  ? 'bg-red-500/15 text-red-400 border-red-500/25'
-                                  : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
+                              ? 'bg-green-500/15 text-green-400 border-green-500/25'
+                              : viewingEmployee.idStatus === 'Expired'
+                                ? 'bg-red-500/15 text-red-400 border-red-500/25'
+                                : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
                               }`}>
                               {viewingEmployee.idStatus}
                             </Badge>
