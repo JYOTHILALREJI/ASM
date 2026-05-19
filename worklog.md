@@ -66,3 +66,44 @@ Stage Summary:
 - After confirmation, all site employees are shown to select a new leader
 - Team leader assignment is saved immediately via API when selected from dropdown
 - Previous team leader is automatically removed when a new one is assigned
+
+---
+Task ID: 4
+Agent: Main
+Task: Add site active/inactive toggle, tabs, attendance sheet with PDF/print, and admin account
+
+Work Log:
+- Updated Prisma Site model with `isActive` (Boolean, default true), `clientName` (String?), `projectName` (String?) fields
+- Ran `prisma db push` and `prisma generate` to sync schema and regenerate client
+- Added admin account to database: asm@test.com / 123456 (role: admin)
+- Copied logo_asm.png to public/ folder for attendance sheet header
+- Installed html2canvas-pro for PDF generation
+- Updated Sites API (GET/POST/PUT) to handle new fields (clientName, projectName, isActive)
+- Completely rewrote Sites page with:
+  - Active/Inactive tabs using shadcn/ui Tabs component
+  - Power/PowerOff toggle button on each site card
+  - Attendance Sheet button on each site card
+  - Updated Add/Edit dialogs with Client Name and Project Name fields
+  - Badge counts on tab labels
+- Created AttendanceSheet component (`src/components/attendance/attendance-sheet.tsx`) with:
+  - Full-screen overlay with A4-like paper document
+  - Company header "ARABIAN SHIELD MANPOWER" with ASM logo
+  - "DAILY ATTENDANCE" title bar
+  - Client Name, Project Name, Date, Strength info section
+  - Editable table (Sl. No, NAME, CODE, TRADE, SIGNATURE columns)
+  - Team Leader first with "POSITION / TEAM LEADER" trade format
+  - Supervisor second with "POSITION / SUPERVISOR" trade format
+  - Inline editable cells (click to edit name, code, trade)
+  - PDF download using html2canvas-pro + jspdf (landscape A4)
+  - Direct print using window.print() with @media print CSS
+  - Empty rows padded to minimum 20 rows
+  - Total footer row
+
+Stage Summary:
+- Sites have active/inactive toggle with separate tabs
+- Each site card has attendance sheet button
+- Add/Edit site dialogs include Client Name and Project Name
+- Full attendance sheet component with editable table, PDF download, and print
+- Admin account (asm@test.com / 123456) added to database
+- All API endpoints tested and working
+- No lint errors

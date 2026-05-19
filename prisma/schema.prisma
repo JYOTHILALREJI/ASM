@@ -60,9 +60,12 @@ model Employee {
 }
 
 model Site {
-  id        String   @id @default(cuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String   @unique
+  clientName  String?
+  projectName String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
 }
 
 model Attendance {

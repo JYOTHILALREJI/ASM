@@ -17,6 +17,9 @@ import {
   X,
   Loader2,
   Crown,
+  FileSpreadsheet,
+  Power,
+  PowerOff,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -26,6 +29,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Table,
   TableBody,
@@ -57,11 +63,15 @@ import {
 } from '@/components/ui/command';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import { AttendanceSheet } from '@/components/attendance/attendance-sheet';
 
 /* ───────── types ───────── */
 interface Site {
   id: string;
   name: string;
+  clientName?: string | null;
+  projectName?: string | null;
+  isActive: boolean;
   createdAt: string;
   employeeCount: number;
 }
@@ -128,8 +138,8 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
-/* ───────── Site Cards List ───────── */
-function SiteCardsList({
+/* ───────── Site Cards Grid ───────── */
+function SiteCardsGrid({
   sites,
   search,
   loading,
@@ -137,7 +147,8 @@ function SiteCardsList({
   onViewEmployees,
   onDeleteSite,
   onEditSite,
-  onAddSite,
+  onToggleActive,
+  onAttendanceSheet,
 }: {
   sites: Site[];
   search: string;
@@ -146,10 +157,13 @@ function SiteCardsList({
   onViewEmployees: (site: Site) => void;
   onDeleteSite: (site: Site) => void;
   onEditSite: (site: Site) => void;
-  onAddSite: () => void;
+  onToggleActive: (site: Site) => void;
+  onAttendanceSheet: (site: Site) => void;
 }) {
   const filteredSites = sites.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
+    s.name.toLowerCase().includes(search.toLowerCase()) ||
+    (s.clientName && s.clientName.toLowerCase().includes(search.toLowerCase())) ||
+    (s.projectName && s.projectName.toLowerCase().includes(search.toLowerCase()))
   );
 
   const formatDate = (dateStr: string) => {
@@ -164,111 +178,145 @@ function SiteCardsList({
     }
   };
 
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {[1, 2, 3].map((i) => (
+          <Skeleton key={i} className="h-52 bg-slate-800 rounded-xl" />
+        ))}
+      </div>
+    );
+  }
+
+  if (filteredSites.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <Building2 className="h-12 w-12 text-slate-600 mb-3" />
+        <p className="text-slate-400 text-lg font-medium">No sites found</p>
+        <p className="text-slate-500 text-sm mt-1">
+          {search ? 'Try a different search term.' : 'No sites in this category.'}
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col gap-6">
-      {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-white">Sites</h2>
-          <p className="text-slate-400 mt-1">
-            Manage work sites and view employees assigned to each site.
-          </p>
-        </div>
-        <Button onClick={onAddSite} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
-          <Plus className="h-4 w-4" />
-          Add Site
-        </Button>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-        <Input
-          placeholder="Search sites..."
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          className="pl-10 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
-        />
-      </div>
-
-      {/* Sites Grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-44 bg-slate-800 rounded-xl" />
-          ))}
-        </div>
-      ) : filteredSites.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Building2 className="h-12 w-12 text-slate-600 mb-3" />
-          <p className="text-slate-400 text-lg font-medium">No sites found</p>
-          <p className="text-slate-500 text-sm mt-1">
-            {search ? 'Try a different search term.' : 'Create your first site to get started.'}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredSites.map((site) => (
-            <Card
-              key={site.id}
-              className="bg-slate-800/50 border-slate-700/50 hover:border-slate-600/50 transition-all group"
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
-                      <Building2 className="h-5 w-5 text-emerald-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <CardTitle className="text-base text-white truncate">
-                        {site.name}
-                      </CardTitle>
-                      <p className="text-[11px] text-slate-500 mt-0.5">
-                        Created {formatDate(site.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-0.5">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 shrink-0"
-                      onClick={() => onEditSite(site)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
-                      onClick={() => onDeleteSite(site)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {filteredSites.map((site) => (
+        <Card
+          key={site.id}
+          className={cn(
+            "border-slate-700/50 hover:border-slate-600/50 transition-all group",
+            site.isActive ? "bg-slate-800/50" : "bg-slate-800/30 opacity-80"
+          )}
+        >
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <div className={cn(
+                  "flex h-10 w-10 items-center justify-center rounded-lg transition-colors",
+                  site.isActive
+                    ? "bg-emerald-500/10 group-hover:bg-emerald-500/20"
+                    : "bg-slate-600/20 group-hover:bg-slate-600/30"
+                )}>
+                  <Building2 className={cn(
+                    "h-5 w-5",
+                    site.isActive ? "text-emerald-400" : "text-slate-500"
+                  )} />
                 </div>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
-                  <Users className="h-4 w-4" />
-                  <span>
-                    <span className="text-white font-semibold">{site.employeeCount}</span>{' '}
-                    {site.employeeCount === 1 ? 'employee' : 'employees'}
-                  </span>
+                <div className="min-w-0">
+                  <CardTitle className="text-base text-white truncate">
+                    {site.name}
+                  </CardTitle>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    Created {formatDate(site.createdAt)}
+                  </p>
                 </div>
+              </div>
+              <div className="flex items-center gap-0.5">
+                {/* Active/Inactive Toggle */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-8 w-8 shrink-0",
+                    site.isActive
+                      ? "text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+                      : "text-slate-500 hover:text-slate-400 hover:bg-slate-500/10"
+                  )}
+                  onClick={() => onToggleActive(site)}
+                  title={site.isActive ? 'Deactivate site' : 'Activate site'}
+                >
+                  {site.isActive ? <Power className="h-3.5 w-3.5" /> : <PowerOff className="h-3.5 w-3.5" />}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 shrink-0"
+                  onClick={() => onEditSite(site)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                  onClick={() => onDeleteSite(site)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0 space-y-3">
+            {/* Client & Project info */}
+            {(site.clientName || site.projectName) && (
+              <div className="space-y-0.5">
+                {site.clientName && (
+                  <p className="text-xs text-slate-400 truncate">
+                    <span className="text-slate-500">Client:</span> {site.clientName}
+                  </p>
+                )}
+                {site.projectName && (
+                  <p className="text-xs text-slate-400 truncate">
+                    <span className="text-slate-500">Project:</span> {site.projectName}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <Users className="h-4 w-4" />
+              <span>
+                <span className="text-white font-semibold">{site.employeeCount}</span>{' '}
+                {site.employeeCount === 1 ? 'employee' : 'employees'}
+              </span>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col gap-2">
+              <div className="flex gap-2">
                 <Button
                   variant="outline"
-                  className="w-full bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 gap-2 transition-all"
+                  className="flex-1 bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 gap-2 transition-all"
                   onClick={() => onViewEmployees(site)}
                 >
                   <Eye className="h-4 w-4" />
                   View Employees
                 </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+                <Button
+                  variant="outline"
+                  className="bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-blue-600 hover:text-white hover:border-blue-600 gap-2 transition-all shrink-0"
+                  onClick={() => onAttendanceSheet(site)}
+                  title="Attendance Sheet"
+                >
+                  <FileSpreadsheet className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
@@ -395,14 +443,19 @@ export function SitesPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [activeTab, setActiveTab] = useState<string>('active');
 
   // Add/Edit/Delete site dialogs
   const [addSiteName, setAddSiteName] = useState('');
+  const [addSiteClientName, setAddSiteClientName] = useState('');
+  const [addSiteProjectName, setAddSiteProjectName] = useState('');
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
 
   const [editSiteTarget, setEditSiteTarget] = useState<Site | null>(null);
   const [editSiteName, setEditSiteName] = useState('');
+  const [editSiteClientName, setEditSiteClientName] = useState('');
+  const [editSiteProjectName, setEditSiteProjectName] = useState('');
   const [editLoading, setEditLoading] = useState(false);
 
   const [deleteSiteTarget, setDeleteSiteTarget] = useState<Site | null>(null);
@@ -423,6 +476,9 @@ export function SitesPage() {
   const [loadingAllEmployees, setLoadingAllEmployees] = useState(false);
   const [addingEmployee, setAddingEmployee] = useState(false);
 
+  // Attendance sheet state
+  const [attendanceSite, setAttendanceSite] = useState<Site | null>(null);
+
   /* ── Fetch sites ── */
   const fetchSites = useCallback(async () => {
     try {
@@ -442,6 +498,10 @@ export function SitesPage() {
   useEffect(() => {
     fetchSites();
   }, [fetchSites]);
+
+  /* ── Split sites by active status ── */
+  const activeSites = useMemo(() => sites.filter((s) => s.isActive), [sites]);
+  const inactiveSites = useMemo(() => sites.filter((s) => !s.isActive), [sites]);
 
   /* ── Fetch site employees ── */
   const fetchSiteEmployees = useCallback(async (siteName: string) => {
@@ -508,6 +568,35 @@ export function SitesPage() {
     fetchSites();
   }, [fetchSites]);
 
+  /* ── Toggle site active status ── */
+  const handleToggleActive = useCallback(async (site: Site) => {
+    try {
+      const res = await fetch('/api/sites', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: site.id,
+          name: site.name,
+          clientName: site.clientName,
+          projectName: site.projectName,
+          isActive: !site.isActive,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        fetchSites();
+        toast({
+          title: site.isActive ? 'Site Deactivated' : 'Site Activated',
+          description: `"${site.name}" has been ${site.isActive ? 'deactivated' : 'activated'}.`,
+        });
+      } else {
+        toast({ title: 'Error', description: json.error || 'Failed to update site', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update site', variant: 'destructive' });
+    }
+  }, [fetchSites]);
+
   /* ── Add site ── */
   const handleAddSite = useCallback(async () => {
     if (!addSiteName.trim()) return;
@@ -516,11 +605,17 @@ export function SitesPage() {
       const res = await fetch('/api/sites', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: addSiteName.trim() }),
+        body: JSON.stringify({
+          name: addSiteName.trim(),
+          clientName: addSiteClientName.trim() || undefined,
+          projectName: addSiteProjectName.trim() || undefined,
+        }),
       });
       const json = await res.json();
       if (json.success) {
         setAddSiteName('');
+        setAddSiteClientName('');
+        setAddSiteProjectName('');
         setShowAddDialog(false);
         fetchSites();
         toast({ title: 'Site Created', description: `"${addSiteName.trim()}" has been added.` });
@@ -532,7 +627,7 @@ export function SitesPage() {
     } finally {
       setAddLoading(false);
     }
-  }, [addSiteName, fetchSites]);
+  }, [addSiteName, addSiteClientName, addSiteProjectName, fetchSites]);
 
   /* ── Edit site ── */
   const handleEditSite = useCallback(async () => {
@@ -542,18 +637,25 @@ export function SitesPage() {
       const res = await fetch('/api/sites', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editSiteTarget.id, name: editSiteName.trim() }),
+        body: JSON.stringify({
+          id: editSiteTarget.id,
+          name: editSiteName.trim(),
+          clientName: editSiteClientName.trim(),
+          projectName: editSiteProjectName.trim(),
+        }),
       });
       const json = await res.json();
       if (json.success) {
         setEditSiteTarget(null);
         setEditSiteName('');
+        setEditSiteClientName('');
+        setEditSiteProjectName('');
         fetchSites();
         // Update viewSite name if we're viewing this site's employees
         if (viewSite && viewSite.id === editSiteTarget.id) {
-          setViewSite((prev) => prev ? { ...prev, name: editSiteName.trim() } : null);
+          setViewSite((prev) => prev ? { ...prev, name: editSiteName.trim(), clientName: editSiteClientName.trim(), projectName: editSiteProjectName.trim() } : null);
         }
-        toast({ title: 'Site Updated', description: `Site name changed to "${editSiteName.trim()}"` });
+        toast({ title: 'Site Updated', description: `Site details updated successfully.` });
       } else {
         toast({ title: 'Error', description: json.error || 'Failed to update site', variant: 'destructive' });
       }
@@ -562,7 +664,7 @@ export function SitesPage() {
     } finally {
       setEditLoading(false);
     }
-  }, [editSiteTarget, editSiteName, fetchSites, viewSite]);
+  }, [editSiteTarget, editSiteName, editSiteClientName, editSiteProjectName, fetchSites, viewSite]);
 
   /* ── Delete site ── */
   const handleDeleteSite = useCallback(async () => {
@@ -691,24 +793,142 @@ export function SitesPage() {
     return new Set(siteEmployees.map((e) => e.id));
   }, [siteEmployees]);
 
+  // Attendance sheet employees (fetched separately for direct attendance access)
+  const [attendanceEmployees, setAttendanceEmployees] = useState<SiteEmployee[]>([]);
+  const [loadingAttendanceEmps, setLoadingAttendanceEmps] = useState(false);
+
+  /* ── Attendance sheet handler ── */
+  const handleAttendanceSheet = useCallback(async (site: Site) => {
+    setAttendanceSite(site);
+    // Fetch employees for this site
+    setLoadingAttendanceEmps(true);
+    try {
+      const res = await fetch('/api/employees?limit=1000&status=all');
+      const json = await res.json();
+      if (json.success) {
+        const emps = (json.data.employees || []).filter(
+          (e: SiteEmployee) => e.currentSite === site.name && e.status !== 'deleted'
+        );
+        setAttendanceEmployees(emps);
+      }
+    } catch {
+      setAttendanceEmployees([]);
+    } finally {
+      setLoadingAttendanceEmps(false);
+    }
+  }, []);
+
+  // If attendance sheet is open, render it
+  if (attendanceSite) {
+    if (loadingAttendanceEmps) {
+      return (
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+          <span className="ml-3 text-slate-400">Loading attendance data...</span>
+        </div>
+      );
+    }
+    return (
+      <AttendanceSheet
+        site={attendanceSite}
+        employees={attendanceEmployees}
+        onClose={() => {
+          setAttendanceSite(null);
+          setAttendanceEmployees([]);
+        }}
+      />
+    );
+  }
+
   /* ───────── RENDER ───────── */
   return (
     <div className="flex flex-col gap-6">
       {/* Sites List View */}
       {subView === 'list' && (
-        <SiteCardsList
-          sites={sites}
-          search={search}
-          loading={loading}
-          onSearchChange={setSearch}
-          onViewEmployees={handleViewEmployees}
-          onDeleteSite={setDeleteSiteTarget}
-          onEditSite={(site) => {
-            setEditSiteTarget(site);
-            setEditSiteName(site.name);
-          }}
-          onAddSite={() => setShowAddDialog(true)}
-        />
+        <div className="flex flex-col gap-6">
+          {/* Page Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold text-white">Sites</h2>
+              <p className="text-slate-400 mt-1">
+                Manage work sites and view employees assigned to each site.
+              </p>
+            </div>
+            <Button onClick={() => setShowAddDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2">
+              <Plus className="h-4 w-4" />
+              Add Site
+            </Button>
+          </div>
+
+          {/* Tabs: Active / Inactive */}
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="bg-slate-800 border border-slate-700">
+              <TabsTrigger value="active" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white gap-1.5">
+                <Power className="h-3.5 w-3.5" />
+                Active
+                <Badge variant="secondary" className="ml-1 bg-slate-700 text-slate-300 text-[10px] px-1.5 py-0 h-4 min-w-[20px] flex items-center justify-center">
+                  {activeSites.length}
+                </Badge>
+              </TabsTrigger>
+              <TabsTrigger value="inactive" className="data-[state=active]:bg-slate-600 data-[state=active]:text-white gap-1.5">
+                <PowerOff className="h-3.5 w-3.5" />
+                Inactive
+                <Badge variant="secondary" className="ml-1 bg-slate-700 text-slate-300 text-[10px] px-1.5 py-0 h-4 min-w-[20px] flex items-center justify-center">
+                  {inactiveSites.length}
+                </Badge>
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Search - shared between tabs */}
+            <div className="relative max-w-sm mt-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search sites..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-10 bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+              />
+            </div>
+
+            <TabsContent value="active" className="mt-4">
+              <SiteCardsGrid
+                sites={activeSites}
+                search={search}
+                loading={loading}
+                onSearchChange={setSearch}
+                onViewEmployees={handleViewEmployees}
+                onDeleteSite={setDeleteSiteTarget}
+                onEditSite={(site) => {
+                  setEditSiteTarget(site);
+                  setEditSiteName(site.name);
+                  setEditSiteClientName(site.clientName || '');
+                  setEditSiteProjectName(site.projectName || '');
+                }}
+                onToggleActive={handleToggleActive}
+                onAttendanceSheet={handleAttendanceSheet}
+              />
+            </TabsContent>
+
+            <TabsContent value="inactive" className="mt-4">
+              <SiteCardsGrid
+                sites={inactiveSites}
+                search={search}
+                loading={loading}
+                onSearchChange={setSearch}
+                onViewEmployees={handleViewEmployees}
+                onDeleteSite={setDeleteSiteTarget}
+                onEditSite={(site) => {
+                  setEditSiteTarget(site);
+                  setEditSiteName(site.name);
+                  setEditSiteClientName(site.clientName || '');
+                  setEditSiteProjectName(site.projectName || '');
+                }}
+                onToggleActive={handleToggleActive}
+                onAttendanceSheet={handleAttendanceSheet}
+              />
+            </TabsContent>
+          </Tabs>
+        </div>
       )}
 
       {/* Employee Full Page View */}
@@ -900,18 +1120,42 @@ export function SitesPage() {
           <DialogHeader>
             <DialogTitle>Add New Site</DialogTitle>
             <DialogDescription className="text-slate-400">
-              Enter a name for the new work site.
+              Enter details for the new work site.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            placeholder="Site name"
-            value={addSiteName}
-            onChange={(e) => setAddSiteName(e.target.value)}
-            className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
-            onKeyDown={(e) => e.key === 'Enter' && handleAddSite()}
-          />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-slate-300">Site Name *</Label>
+              <Input
+                placeholder="e.g. NPC-Umm Al Quwain"
+                value={addSiteName}
+                onChange={(e) => setAddSiteName(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSite()}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Client Name</Label>
+              <Input
+                placeholder="e.g. NPC"
+                value={addSiteClientName}
+                onChange={(e) => setAddSiteClientName(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Project Name</Label>
+              <Input
+                placeholder="e.g. NPC-Umm Al Quwain"
+                value={addSiteProjectName}
+                onChange={(e) => setAddSiteProjectName(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                onKeyDown={(e) => e.key === 'Enter' && handleAddSite()}
+              />
+            </div>
+          </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setShowAddDialog(false)} className="text-slate-400 hover:text-white">
+            <Button variant="ghost" onClick={() => { setShowAddDialog(false); setAddSiteName(''); setAddSiteClientName(''); setAddSiteProjectName(''); }} className="text-slate-400 hover:text-white">
               Cancel
             </Button>
             <Button
@@ -932,29 +1176,57 @@ export function SitesPage() {
           if (!open) {
             setEditSiteTarget(null);
             setEditSiteName('');
+            setEditSiteClientName('');
+            setEditSiteProjectName('');
           }
         }}
       >
         <DialogContent className="bg-slate-800 border-slate-700 text-slate-200">
           <DialogHeader>
-            <DialogTitle>Edit Site Name</DialogTitle>
+            <DialogTitle>Edit Site</DialogTitle>
             <DialogDescription className="text-slate-400">
-              Change the name of this work site. All employees assigned to &ldquo;{editSiteTarget?.name}&rdquo; will be updated.
+              Update details for &ldquo;{editSiteTarget?.name}&rdquo;. All employees assigned to this site will be updated if the name changes.
             </DialogDescription>
           </DialogHeader>
-          <Input
-            placeholder="New site name"
-            value={editSiteName}
-            onChange={(e) => setEditSiteName(e.target.value)}
-            className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
-            onKeyDown={(e) => e.key === 'Enter' && handleEditSite()}
-          />
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label className="text-slate-300">Site Name *</Label>
+              <Input
+                placeholder="Site name"
+                value={editSiteName}
+                onChange={(e) => setEditSiteName(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                onKeyDown={(e) => e.key === 'Enter' && handleEditSite()}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Client Name</Label>
+              <Input
+                placeholder="Client name"
+                value={editSiteClientName}
+                onChange={(e) => setEditSiteClientName(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-300">Project Name</Label>
+              <Input
+                placeholder="Project name"
+                value={editSiteProjectName}
+                onChange={(e) => setEditSiteProjectName(e.target.value)}
+                className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                onKeyDown={(e) => e.key === 'Enter' && handleEditSite()}
+              />
+            </div>
+          </div>
           <DialogFooter>
             <Button
               variant="ghost"
               onClick={() => {
                 setEditSiteTarget(null);
                 setEditSiteName('');
+                setEditSiteClientName('');
+                setEditSiteProjectName('');
               }}
               className="text-slate-400 hover:text-white"
             >
@@ -962,7 +1234,7 @@ export function SitesPage() {
             </Button>
             <Button
               onClick={handleEditSite}
-              disabled={!editSiteName.trim() || editSiteName === editSiteTarget?.name || editLoading}
+              disabled={!editSiteName.trim() || (editSiteName === editSiteTarget?.name && editSiteClientName === (editSiteTarget?.clientName || '') && editSiteProjectName === (editSiteTarget?.projectName || '')) || editLoading}
               className="bg-emerald-600 hover:bg-emerald-700 text-white"
             >
               {editLoading ? 'Saving...' : 'Save Changes'}
