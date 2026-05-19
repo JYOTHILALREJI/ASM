@@ -4,6 +4,14 @@ const fs = require('fs');
 
 console.log('=== ASM Railway Startup ===');
 
+// Step 0: Switch to PostgreSQL provider for Railway
+console.log('Switching Prisma to PostgreSQL provider...');
+try {
+  execSync('node scripts/switch-db.js postgresql', { stdio: 'inherit' });
+} catch (e) {
+  console.error('Warning: switch-db failed, continuing...', e.message);
+}
+
 // Step 1: Push database schema
 console.log('Pushing database schema...');
 try {

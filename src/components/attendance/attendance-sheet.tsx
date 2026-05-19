@@ -102,9 +102,9 @@ function tableHeaderHtml(): string {
     <tr>
       <th style="width:40px;">SL. NO</th>
       <th style="text-align:left;">NAME</th>
-      <th style="width:70px;">CODE</th>
+      <th style="width:80px;">EMP. CODE</th>
       <th style="width:140px; text-align:left;">TRADE</th>
-      <th style="width:100px;">SIGNATURE</th>
+      <th style="width:140px;">SIGNATURE</th>
     </tr>
   `;
 }
@@ -134,10 +134,15 @@ function buildPageHtml(params: {
   // Header - Light gray bordered box
   if (isFirstPage) {
     html += `
-      <div style="position:relative; border:1px solid #000; background:#E8E8E8; padding:8px 12px; margin-bottom:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
-        <div style="position:absolute; top:4px; right:8px;"><img src="/logo_asm.png" alt="ASM" style="height:36px; width:auto;" /></div>
-        <div style="font-size:16px; font-weight:bold; text-align:center; text-transform:uppercase; letter-spacing:0.08em; color:#000;">ARABIAN SHIELD MANPOWER</div>
-        <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:5px; font-size:11px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:6px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
+      <div style="position:relative; border:1px solid #000; background:#E8E8E8; padding:8px 12px; margin-bottom:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact; display:flex; align-items:center; justify-content:space-between; min-height:52px;">
+        <div style="flex:1;"></div>
+        <div style="flex:0 0 auto; text-align:center;">
+          <div style="font-size:16px; font-weight:bold; text-align:center; text-transform:uppercase; letter-spacing:0.08em; color:#000;">ARABIAN SHIELD MANPOWER</div>
+          <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:5px; font-size:11px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:6px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
+        </div>
+        <div style="flex:1; display:flex; justify-content:flex-end; align-items:center;">
+          <img src="/logo_asm.png" alt="ASM" style="height:48px; width:auto;" />
+        </div>
       </div>
     `;
 
@@ -145,12 +150,12 @@ function buildPageHtml(params: {
     html += `
       <div style="font-size:11px; text-transform:uppercase; margin-bottom:8px; line-height:1.8; padding:0 4px;">
         <div style="display:flex; align-items:baseline; margin-bottom:2px;">
-          <span style="font-weight:bold; width:130px; flex-shrink:0;">&#8226; CLIENT NAME :</span>
-          <span style="flex:1; border-bottom:1px solid #555; padding:0 4px; min-height:16px;">${upper(clientName)}</span>
+          <span style="font-weight:bold; width:130px; flex-shrink:0; font-family:'Times New Roman', Times, serif;">&#8226; CLIENT NAME :</span>
+          <span style="flex:1; border-bottom:1px solid #555; padding:0 4px; min-height:16px; font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(clientName)}</span>
         </div>
         <div style="display:flex; align-items:baseline; margin-bottom:2px;">
-          <span style="font-weight:bold; width:130px; flex-shrink:0;">&#8226; PROJECT NAME :</span>
-          <span style="flex:1; border-bottom:1px solid #555; padding:0 4px; min-height:16px;">${upper(projectName)}</span>
+          <span style="font-weight:bold; width:130px; flex-shrink:0; font-family:'Times New Roman', Times, serif;">&#8226; PROJECT NAME :</span>
+          <span style="flex:1; border-bottom:1px solid #555; padding:0 4px; min-height:16px; font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(projectName)}</span>
         </div>
         <div style="display:flex; align-items:baseline; margin-bottom:2px;">
           <span style="font-weight:bold; width:130px; flex-shrink:0;">&#8226; DATE :</span>
@@ -169,7 +174,7 @@ function buildPageHtml(params: {
         <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:4px; font-size:10px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:4px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
       </div>
       <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:8px; text-transform:uppercase; color:#374151;">
-        <span><strong>CLIENT:</strong> ${upper(clientName)} &nbsp;&nbsp; <strong>PROJECT:</strong> ${upper(projectName)}</span>
+        <span><strong style="font-family:'Times New Roman', Times, serif;">CLIENT:</strong> <span style="font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(clientName)}</span> &nbsp;&nbsp; <strong style="font-family:'Times New Roman', Times, serif;">PROJECT:</strong> <span style="font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(projectName)}</span></span>
         <span><strong>DATE:</strong> ${upper(dateInput)}</span>
       </div>
     `;
@@ -198,10 +203,10 @@ function buildPageHtml(params: {
 
       html += `
         <tr class="${rowClass}">
-          <td style="text-align:center;">${serialNo}</td>
-          <td>${upper(row.fullName || '')}</td>
-          <td style="text-align:center;">${upper(row.code || '')}</td>
-          <td>${upper(trade)}</td>
+          <td style="text-align:center; font-weight:bold;">${serialNo}</td>
+          <td style="font-weight:bold;">${upper(row.fullName || '')}</td>
+          <td style="text-align:center; font-weight:bold;">${upper(row.code || '')}</td>
+          <td style="font-weight:bold;">${upper(trade)}</td>
           <td style="text-align:center;"></td>
         </tr>
       `;
@@ -226,10 +231,10 @@ function buildPageHtml(params: {
       const serialNo = extraStartNo + idx;
       html += `
         <tr>
-          <td style="text-align:center; color:#9ca3af;">${serialNo}</td>
-          <td></td>
-          <td style="text-align:center;"></td>
-          <td></td>
+          <td style="text-align:center; color:#9ca3af; font-weight:bold;">${serialNo}</td>
+          <td style="font-weight:bold;"></td>
+          <td style="text-align:center; font-weight:bold;"></td>
+          <td style="font-weight:bold;"></td>
           <td style="text-align:center;"></td>
         </tr>
       `;
@@ -285,6 +290,9 @@ function getPrintCSS(): string {
       font-weight: bold;
       text-align: center;
       font-size: 11px;
+    }
+    td {
+      font-weight: bold;
     }
     .even-row { background: #f3f4f6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .team-leader { background: #fffbeb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -603,47 +611,53 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                 {/* Header Section */}
                 {isFirstPage ? (
                   <>
-                    <div className="relative border border-black bg-gray-200 p-2">
-                      <div className="absolute top-1 right-2">
+                    <div className="relative border border-black bg-gray-200 px-3 py-2 flex items-center justify-between" style={{ minHeight: '52px' }}>
+                      {/* Left spacer for centering */}
+                      <div className="flex-1" />
+                      {/* Center content */}
+                      <div className="flex-1 text-center">
+                        <h1 className="text-[16px] font-bold text-black tracking-[0.08em] uppercase">
+                          ARABIAN SHIELD MANPOWER
+                        </h1>
+                        <div className="mt-1.5 text-center py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase" style={{ background: HEADER_BG, color: HEADER_TEXT }}>
+                          DAILY ATTENDANCE
+                        </div>
+                      </div>
+                      {/* Right logo */}
+                      <div className="flex-1 flex justify-end items-center">
                         <img
                           src="/logo_asm.png"
                           alt="ASM Logo"
-                          className="h-10 w-auto object-contain"
+                          className="h-12 w-auto object-contain"
                           crossOrigin="anonymous"
                         />
-                      </div>
-                      <h1 className="text-[18px] font-bold text-center text-black tracking-[0.08em] uppercase">
-                        ARABIAN SHIELD MANPOWER
-                      </h1>
-                      <div className="mt-1.5 text-center py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase" style={{ background: HEADER_BG, color: HEADER_TEXT }}>
-                        DAILY ATTENDANCE
                       </div>
                     </div>
 
                     {/* Info Section */}
-                    <div className="mt-4 text-[12px] uppercase">
+                    <div className="mt-4 text-[11px] uppercase">
                       <div className="flex items-baseline mb-1.5">
-                        <span className="font-bold text-gray-900 w-36 shrink-0">&#8226; CLIENT NAME :</span>
-                        <span className="flex-1 border-b border-gray-500">
-                          <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
+                        <span className="font-bold text-gray-900 w-36 shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>&#8226; CLIENT NAME :</span>
+                        <span className="flex-1 border-b border-gray-500" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>
+                          <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }} />
                         </span>
                       </div>
                       <div className="flex items-baseline mb-1.5">
-                        <span className="font-bold text-gray-900 w-36 shrink-0">&#8226; PROJECT NAME :</span>
-                        <span className="flex-1 border-b border-gray-500">
-                          <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
+                        <span className="font-bold text-gray-900 w-36 shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>&#8226; PROJECT NAME :</span>
+                        <span className="flex-1 border-b border-gray-500" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>
+                          <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }} />
                         </span>
                       </div>
                       <div className="flex items-baseline mb-1.5">
                         <span className="font-bold text-gray-900 w-36 shrink-0">&#8226; DATE :</span>
                         <span className="flex-1 border-b border-gray-500">
-                          <input type="text" value={dateInput} onChange={(e) => handleDateChange(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] font-mono uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
+                          <input type="text" value={dateInput} onChange={(e) => handleDateChange(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] font-mono uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
                         </span>
                       </div>
                       <div className="flex items-baseline mb-1.5">
                         <span className="font-bold text-gray-900 w-36 shrink-0">&#8226; STRENGTH :</span>
                         <span className="flex-1 border-b border-gray-500">
-                          <input type="text" value={strengthInput} onChange={(e) => setStrengthInput(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] font-semibold uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
+                          <input type="text" value={strengthInput} onChange={(e) => setStrengthInput(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] font-semibold uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
                         </span>
                       </div>
                     </div>
@@ -659,7 +673,7 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                       </div>
                     </div>
                     <div className="mt-3 flex justify-between text-[11px] uppercase text-gray-600">
-                      <span><strong>CLIENT:</strong> {upper(clientName)} &nbsp;&nbsp; <strong>PROJECT:</strong> {upper(projectName)}</span>
+                      <span><strong style={{ fontFamily: "'Times New Roman', Times, serif" }}>CLIENT:</strong> <span style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>{upper(clientName)}</span> &nbsp;&nbsp; <strong style={{ fontFamily: "'Times New Roman', Times, serif" }}>PROJECT:</strong> <span style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>{upper(projectName)}</span></span>
                       <span><strong>DATE:</strong> {upper(dateInput)}</span>
                     </div>
                   </>
@@ -672,9 +686,9 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                       <tr style={{ background: HEADER_BG, color: HEADER_TEXT }}>
                         <th className="border border-black px-2 py-1.5 text-center font-bold w-12 uppercase">SL. NO</th>
                         <th className="border border-black px-2 py-1.5 text-left font-bold uppercase">NAME</th>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-24 uppercase">CODE</th>
-                        <th className="border border-black px-2 py-1.5 text-left font-bold w-44 uppercase">TRADE</th>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-36 uppercase">SIGNATURE</th>
+                        <th className="border border-black px-2 py-1.5 text-center font-bold w-24 uppercase">EMP. CODE</th>
+                        <th className="border border-black px-2 py-1.5 text-left font-bold w-40 uppercase">TRADE</th>
+                        <th className="border border-black px-2 py-1.5 text-center font-bold w-40 uppercase">SIGNATURE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -691,15 +705,15 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                               row.isSupervisor && !row.isTeamLeader && 'bg-blue-50'
                             )}
                           >
-                            <td className="border border-black px-2 py-1 text-center text-gray-700">{serialNo}</td>
+                            <td className="border border-black px-2 py-1 text-center text-gray-700 font-bold">{serialNo}</td>
                             <td className="border border-black px-1 py-0">
-                              <EditableCell value={upper(row.fullName || '')} onChange={(val) => updateEmployee(row.id!, 'fullName', val)} className="py-0.5 text-gray-900 font-medium text-[11px] uppercase" uppercase />
+                              <EditableCell value={upper(row.fullName || '')} onChange={(val) => updateEmployee(row.id!, 'fullName', val)} className="py-0.5 text-gray-900 font-bold text-[11px] uppercase" uppercase />
                             </td>
                             <td className="border border-black px-1 py-0 text-center">
-                              <EditableCell value={upper(row.code || '')} onChange={(val) => updateEmployee(row.id!, 'code', val)} className="py-0.5 text-gray-700 text-center font-mono text-[11px] uppercase" align="center" uppercase />
+                              <EditableCell value={upper(row.code || '')} onChange={(val) => updateEmployee(row.id!, 'code', val)} className="py-0.5 text-gray-700 text-center font-mono font-bold text-[11px] uppercase" align="center" uppercase />
                             </td>
                             <td className="border border-black px-1 py-0">
-                              <EditableCell value={upper(getDisplayTrade(row as typeof sortedEmployees[0] & { type: string }))} onChange={(val) => { const baseVal = val.replace(/ \/ (TEAM LEADER|SUPERVISOR)$/i, ''); updateEmployee(row.id!, 'position', baseVal); }} className="py-0.5 text-gray-700 uppercase text-[11px]" uppercase />
+                              <EditableCell value={upper(getDisplayTrade(row as typeof sortedEmployees[0] & { type: string }))} onChange={(val) => { const baseVal = val.replace(/ \/ (TEAM LEADER|SUPERVISOR)$/i, ''); updateEmployee(row.id!, 'position', baseVal); }} className="py-0.5 text-gray-700 uppercase font-bold text-[11px]" uppercase />
                             </td>
                             <td className="border border-black px-2 py-1 text-center">
                               <EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" align="center" />
@@ -723,9 +737,9 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                         <tr style={{ background: HEADER_BG, color: HEADER_TEXT }}>
                           <th className="border border-black px-2 py-1.5 text-center font-bold w-12 uppercase">SL. NO</th>
                           <th className="border border-black px-2 py-1.5 text-left font-bold uppercase">NAME</th>
-                          <th className="border border-black px-2 py-1.5 text-center font-bold w-24 uppercase">CODE</th>
-                          <th className="border border-black px-2 py-1.5 text-left font-bold w-44 uppercase">TRADE</th>
-                          <th className="border border-black px-2 py-1.5 text-center font-bold w-36 uppercase">SIGNATURE</th>
+                          <th className="border border-black px-2 py-1.5 text-center font-bold w-24 uppercase">EMP. CODE</th>
+                          <th className="border border-black px-2 py-1.5 text-left font-bold w-40 uppercase">TRADE</th>
+                          <th className="border border-black px-2 py-1.5 text-center font-bold w-40 uppercase">SIGNATURE</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -733,10 +747,10 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                           const serialNo = sortedEmployees.length + idx + 1;
                           return (
                             <tr key={`extra-${idx}`} className="bg-white">
-                              <td className="border border-black px-2 py-1 text-center text-gray-400 text-[11px]">{serialNo}</td>
-                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" /></td>
-                              <td className="border border-black px-1 py-0 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" align="center" /></td>
-                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" /></td>
+                              <td className="border border-black px-2 py-1 text-center text-gray-400 text-[11px] font-bold">{serialNo}</td>
+                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px] font-bold" /></td>
+                              <td className="border border-black px-1 py-0 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px] font-bold" align="center" /></td>
+                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px] font-bold" /></td>
                               <td className="border border-black px-2 py-1 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" align="center" /></td>
                             </tr>
                           );
