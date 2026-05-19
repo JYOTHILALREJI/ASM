@@ -1,8 +1,9 @@
 [build]
-buildCommand = "node scripts/switch-db.js postgresql && npx prisma generate && npx prisma db push --accept-data-loss && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/"
+buildCommand = "node scripts/switch-db.js postgresql && npx prisma generate && next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/ && cp -r prisma .next/standalone/ && cp -r scripts .next/standalone/ && cp railway-start.js .next/standalone/ && cp package.json .next/standalone/"
 
 [deploy]
 startCommand = "node railway-start.js"
+preDeployCommand = "npx prisma db push --accept-data-loss"
 healthcheckPath = "/"
 healthcheckTimeout = 300
 restartPolicyType = "ON_FAILURE"
