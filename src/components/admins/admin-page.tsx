@@ -238,7 +238,7 @@ export function AdminPage() {
         res = await fetch('/api/admins', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify({ ...formData, requesterId: user?.id }),
         });
       }
       const json = await res.json();

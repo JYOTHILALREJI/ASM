@@ -119,7 +119,7 @@ function buildPageHtml(params: {
     <div style="position:relative; border:1px solid #000; background:#E8E8E8; padding:8px 12px; margin-bottom:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
       ${pageIdx === 0 ? '<div style="position:absolute; top:4px; right:8px;"><img src="/logo_asm.png" alt="ASM" style="height:36px; width:auto;" /></div>' : ''}
       <div style="font-size:16px; font-weight:bold; text-align:center; text-transform:uppercase; letter-spacing:0.08em; color:#000;">ARABIAN SHIELD MANPOWER</div>
-      <div style="background:#1f2937; color:white; text-align:center; padding:5px; font-size:11px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:6px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
+      <div style="background:#6B7280; color:white; text-align:center; padding:5px; font-size:11px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:6px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
     </div>
   `;
 
@@ -249,7 +249,7 @@ function getPrintCSS(): string {
       text-transform: uppercase;
     }
     thead tr {
-      background: #1f2937 !important;
+      background: #6B7280 !important;
       color: white !important;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -264,7 +264,7 @@ function getPrintCSS(): string {
       font-size: 11px;
     }
     .extra-separator td {
-      border-top: 2px solid #1f2937 !important;
+      border-top: 2px solid #6B7280 !important;
       background: #f9fafb;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -273,7 +273,7 @@ function getPrintCSS(): string {
     .team-leader { background: #fffbeb !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .supervisor { background: #eff6ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     .total-row {
-      background: #1f2937 !important;
+      background: #6B7280 !important;
       color: white !important;
       font-weight: bold;
       -webkit-print-color-adjust: exact;
@@ -620,7 +620,7 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                     ARABIAN SHIELD MANPOWER
                   </h1>
 
-                  <div className="mt-1.5 bg-gray-800 text-white text-center py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase">
+                  <div className="mt-1.5 bg-gray-500 text-white text-center py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase">
                     DAILY ATTENDANCE
                   </div>
                 </div>
@@ -684,7 +684,7 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                 <div className="px-8 mt-4 pb-4">
                   <table className="w-full border-collapse text-[11px] uppercase">
                     <thead>
-                      <tr className="bg-gray-800 text-white">
+                      <tr className="bg-gray-500 text-white">
                         <th className="border border-black px-2 py-1.5 text-center font-bold w-12 uppercase">SL. NO</th>
                         <th className="border border-black px-2 py-1.5 text-left font-bold uppercase">NAME</th>
                         <th className="border border-black px-2 py-1.5 text-center font-bold w-24 uppercase">CODE</th>
@@ -774,7 +774,7 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
 
                     {isLastPage && (
                       <tfoot>
-                        <tr className="bg-gray-800 text-white font-bold uppercase">
+                        <tr className="bg-gray-500 text-white font-bold uppercase">
                           <td className="border border-black px-2 py-2 text-center" colSpan={4}>TOTAL</td>
                           <td className="border border-black px-2 py-2 text-center uppercase">{displayStrength}</td>
                         </tr>

@@ -45,7 +45,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, password, role } = body;
+    const { email, name, password, role, requesterId } = body;
 
     if (!email || !name || !password) {
       return NextResponse.json(
@@ -54,8 +54,37 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate role - only allow admin or super_admin
-    const userRole = role === 'super_admin' ? 'super_admin' : 'admin';
+    // Validate role - only allow admin by default; super_admin requires requester to be super_admin
+    let userRole: 'admin' | 'super_admin' = 'admin';
+
+    if (role === 'super_admin') {
+      // Only allow super_admin creation if the requester is a super_admin
+      if (requesterId) {
+        const requester = await db.user.findUnique({
+          where: { id: requesterId },
+          select: { role: true },
+        });
+        if (requester?.role !== 'super_admin') {
+          return NextResponse.json(
+            { success: false, error: 'Only super admins can create super admin accounts' },
+            { status: 403 }
+          );
+        }
+      } else {
+        // No requester ID provided - check if this is the initial signup (no super_admin exists yet)
+        const superAdminExists = await db.user.findFirst({
+          where: { role: 'super_admin' },
+          select: { id: true },
+        });
+        if (superAdminExists) {
+          return NextResponse.json(
+            { success: false, error: 'Only super admins can create super admin accounts' },
+            { status: 403 }
+          );
+        }
+      }
+      userRole = 'super_admin';
+    }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -76,9 +105,6 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
-
-    // If creating super_admin, ensure at least one exists (safety check - allow multiple)
-    // No restriction on creating multiple super_admins
 
     const hashedPassword = await hashPassword(password);
 
