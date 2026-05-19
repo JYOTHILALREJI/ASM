@@ -261,3 +261,26 @@ Stage Summary:
 - Attendance sheet now has bigger logo on right side, EMP. CODE column, bold entries, Times New Roman for client/project
 - PostgreSQL support added for Railway deployment via switch-db script
 - Code pushed to GitHub: commit 0262d2d
+---
+Task ID: 3
+Agent: Main Agent
+Task: Fix attendance sheet text sizes and admin sidebar menu permissions
+
+Work Log:
+- Updated PDF/print CSS: table font-size 11px→12px, th font-size 11px→13px
+- Updated PDF/print HTML: main heading 16px (first page), 14px (subsequent), DAILY ATTENDANCE 11px→13px
+- Updated info section font-size 11px→12px for client name, project name, date, strength
+- Updated extra employees heading 11px→12px
+- All viewport text sizes updated to match: table content 12px, header 13px, main heading 16px
+- Added updateUser() method to auth-store.ts for live permission updates without re-login
+- Updated admin-page.tsx handleSavePermissions to call updateUser when the affected admin is currently logged in
+- Made requesterId mandatory in PUT /api/admin-menu-permissions (was previously optional)
+- Added user?.allowedMenus to useEffect dependency in page.tsx for real-time sidebar reactivity
+- Both grant and revoke operations work correctly - API tested and verified
+- Lint passes, code pushed to GitHub
+
+Stage Summary:
+- Attendance sheet text sizes: table 12px, header 13px, main heading 16px/14px
+- Admin sidebar menu permissions now take effect immediately without re-login
+- Security fix: requesterId now mandatory for permission updates
+- Commit 90a11a0 pushed to GitHub
