@@ -11,8 +11,8 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '20', 10);
     const skip = (page - 1) * limit;
 
-    // Build where clause
-    const where: Record<string, unknown> = {};
+    // Build where clause - always exclude deleted records
+    const where: Record<string, unknown> = { isDeleted: false };
 
     if (search) {
       const orConditions: Record<string, unknown>[] = [

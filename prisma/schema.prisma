@@ -179,6 +179,7 @@ model UniformRegistry {
   teamLeaderName String?
   isRenewal      Boolean  @default(false)
   previousTokenId String? // reference to previous token if this is a renewal
+  isDeleted      Boolean  @default(false)
   createdAt      DateTime @default(now())
   renewalDate    DateTime // 6 months from createdAt
 

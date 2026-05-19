@@ -24,7 +24,7 @@ export async function GET(
       },
     });
 
-    if (!entry) {
+    if (!entry || entry.isDeleted) {
       return NextResponse.json(
         { success: false, error: 'Uniform registry entry not found' },
         { status: 404 }
@@ -61,7 +61,7 @@ export async function PUT(
 
     // Check if entry exists
     const existing = await db.uniformRegistry.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.isDeleted) {
       return NextResponse.json(
         { success: false, error: 'Uniform registry entry not found' },
         { status: 404 }
@@ -125,14 +125,18 @@ export async function DELETE(
 
     // Check if entry exists
     const existing = await db.uniformRegistry.findUnique({ where: { id } });
-    if (!existing) {
+    if (!existing || existing.isDeleted) {
       return NextResponse.json(
         { success: false, error: 'Uniform registry entry not found' },
         { status: 404 }
       );
     }
 
-    await db.uniformRegistry.delete({ where: { id } });
+    // Soft delete - mark as deleted instead of removing from database
+    await db.uniformRegistry.update({
+      where: { id },
+      data: { isDeleted: true },
+    });
 
     return NextResponse.json({
       success: true,

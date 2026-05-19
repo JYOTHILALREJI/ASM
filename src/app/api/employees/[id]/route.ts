@@ -211,6 +211,12 @@ export async function DELETE(
       data: { status: 'deleted' },
     });
 
+    // Mark all uniform registry records for this employee as deleted
+    await db.uniformRegistry.updateMany({
+      where: { employeeId: id, isDeleted: false },
+      data: { isDeleted: true },
+    });
+
     return NextResponse.json({
       success: true,
       data: { employee: { id: employee.id, status: employee.status } },
