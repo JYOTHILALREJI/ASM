@@ -7,6 +7,7 @@ import {
   Calendar,
   Bell,
   Shield,
+  Crown,
   LogOut,
   ChevronLeft,
   ChevronRight,
@@ -47,7 +48,7 @@ const navItems: NavItem[] = [
   { id: 'leave_requests', label: 'Leave Requests', icon: FileText, roles: ['super_admin'] },
   { id: 'cancellation_requests', label: 'Cancellations', icon: Ban, roles: ['super_admin'] },
   { id: 'notifications', label: 'Notifications', icon: Bell, roles: ['super_admin'] },
-  { id: 'admins', label: 'Create Admins', icon: Shield, roles: ['super_admin'] },
+  { id: 'admins', label: 'Admin Management', icon: Shield, roles: ['super_admin'] },
 ];
 
 interface SidebarContentProps {
@@ -161,7 +162,12 @@ function SidebarContent({ collapsed = false, onNavigate }: SidebarContentProps) 
               collapsed && 'justify-center p-2'
             )}
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/20 text-blue-400 font-semibold text-sm shrink-0">
+            <div className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-full font-semibold text-sm shrink-0",
+              user.role === 'super_admin'
+                ? 'bg-amber-500/20 text-amber-400'
+                : 'bg-blue-500/20 text-blue-400'
+            )}>
               {user.name
                 .split(' ')
                 .map((n) => n[0])
@@ -175,9 +181,16 @@ function SidebarContent({ collapsed = false, onNavigate }: SidebarContentProps) 
                 </span>
                 <Badge
                   variant="secondary"
-                  className="mt-0.5 w-fit text-[10px] px-1.5 py-0 h-4 bg-slate-700 text-slate-300"
+                  className={cn(
+                    "mt-0.5 w-fit text-[10px] px-1.5 py-0 h-4",
+                    user.role === 'super_admin'
+                      ? 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                      : 'bg-slate-700 text-slate-300'
+                  )}
                 >
-                  {user.role === 'super_admin' ? 'Super Admin' : 'Admin'}
+                  {user.role === 'super_admin' ? (
+                    <span className="flex items-center gap-0.5"><Crown className="h-2.5 w-2.5" /> Super Admin</span>
+                  ) : 'Admin'}
                 </Badge>
               </div>
             )}

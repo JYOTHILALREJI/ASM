@@ -23,7 +23,7 @@ export async function GET(
 
     if (!user) {
       return NextResponse.json(
-        { success: false, error: 'Admin not found' },
+        { success: false, error: 'User not found' },
         { status: 404 }
       );
     }
@@ -54,21 +54,14 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, email, password } = body;
+    const { name, email, password, role } = body;
 
     const existing = await db.user.findUnique({ where: { id } });
 
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Admin not found' },
+        { success: false, error: 'User not found' },
         { status: 404 }
-      );
-    }
-
-    if (existing.role === 'super_admin') {
-      return NextResponse.json(
-        { success: false, error: 'Cannot update super admin through this endpoint' },
-        { status: 403 }
       );
     }
 
@@ -107,6 +100,32 @@ export async function PUT(
 
     if (password !== undefined && password.length > 0) {
       data.password = await hashPassword(password);
+    }
+
+    // Support role changes (admin <-> super_admin)
+    if (role !== undefined) {
+      const validRoles = ['admin', 'super_admin'];
+      if (!validRoles.includes(role)) {
+        return NextResponse.json(
+          { success: false, error: 'Invalid role. Must be admin or super_admin.' },
+          { status: 400 }
+        );
+      }
+
+      // If demoting from super_admin, ensure at least one super_admin remains
+      if (existing.role === 'super_admin' && role !== 'super_admin') {
+        const superAdminCount = await db.user.count({
+          where: { role: 'super_admin' },
+        });
+        if (superAdminCount <= 1) {
+          return NextResponse.json(
+            { success: false, error: 'Cannot demote the last super admin. Promote another user first.' },
+            { status: 400 }
+          );
+        }
+      }
+
+      data.role = role;
     }
 
     if (Object.keys(data).length === 0) {
@@ -159,23 +178,29 @@ export async function DELETE(
 
     if (!existing) {
       return NextResponse.json(
-        { success: false, error: 'Admin not found' },
+        { success: false, error: 'User not found' },
         { status: 404 }
       );
     }
 
+    // If deleting a super_admin, ensure at least one remains
     if (existing.role === 'super_admin') {
-      return NextResponse.json(
-        { success: false, error: 'Cannot delete super admin' },
-        { status: 403 }
-      );
+      const superAdminCount = await db.user.count({
+        where: { role: 'super_admin' },
+      });
+      if (superAdminCount <= 1) {
+        return NextResponse.json(
+          { success: false, error: 'Cannot delete the last super admin. Promote another user first.' },
+          { status: 400 }
+        );
+      }
     }
 
     await db.user.delete({ where: { id } });
 
     return NextResponse.json({
       success: true,
-      data: { message: 'Admin deleted successfully' },
+      data: { message: 'User deleted successfully' },
     });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Internal server error';

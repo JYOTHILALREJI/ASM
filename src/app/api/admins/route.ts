@@ -4,8 +4,11 @@ import { hashPassword } from '@/lib/auth';
 
 export async function GET() {
   try {
+    // Fetch all users (both admin and super_admin)
     const admins = await db.user.findMany({
-      where: { role: 'admin' },
+      where: {
+        role: { in: ['admin', 'super_admin'] },
+      },
       select: {
         id: true,
         email: true,
@@ -14,7 +17,10 @@ export async function GET() {
         createdAt: true,
         updatedAt: true,
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [
+        { role: 'desc' }, // super_admin first
+        { createdAt: 'desc' },
+      ],
     });
 
     return NextResponse.json({
@@ -39,7 +45,7 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, name, password } = body;
+    const { email, name, password, role } = body;
 
     if (!email || !name || !password) {
       return NextResponse.json(
@@ -47,6 +53,9 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate role - only allow admin or super_admin
+    const userRole = role === 'super_admin' ? 'super_admin' : 'admin';
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
@@ -68,6 +77,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // If creating super_admin, ensure at least one exists (safety check - allow multiple)
+    // No restriction on creating multiple super_admins
+
     const hashedPassword = await hashPassword(password);
 
     const user = await db.user.create({
@@ -75,7 +87,7 @@ export async function POST(request: NextRequest) {
         email: email.toLowerCase(),
         name,
         password: hashedPassword,
-        role: 'admin',
+        role: userRole,
       },
       select: {
         id: true,

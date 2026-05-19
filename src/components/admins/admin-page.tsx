@@ -10,6 +10,7 @@ import {
   Search,
   Mail,
   Lock,
+  Crown,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -59,12 +67,14 @@ interface AdminFormData {
   name: string;
   email: string;
   password: string;
+  role: 'admin' | 'super_admin';
 }
 
 const emptyForm: AdminFormData = {
   name: '',
   email: '',
   password: '',
+  role: 'admin',
 };
 
 export function AdminPage() {
@@ -87,7 +97,7 @@ export function AdminPage() {
   const [deletingAdmin, setDeletingAdmin] = useState<Admin | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  // Fetch admins
+  // Fetch admins (now includes super_admins too)
   const fetchAdmins = useCallback(async () => {
     try {
       setLoading(true);
@@ -134,9 +144,14 @@ export function AdminPage() {
     const q = searchQuery.toLowerCase();
     return (
       admin.name.toLowerCase().includes(q) ||
-      admin.email.toLowerCase().includes(q)
+      admin.email.toLowerCase().includes(q) ||
+      admin.role.toLowerCase().includes(q)
     );
   });
+
+  // Separate super admins and regular admins
+  const superAdmins = filteredAdmins.filter(a => a.role === 'super_admin');
+  const regularAdmins = filteredAdmins.filter(a => a.role === 'admin');
 
   // Validate form
   function validateForm(data: AdminFormData, isEdit: boolean): Record<string, string> {
@@ -158,9 +173,9 @@ export function AdminPage() {
   }
 
   // Open create dialog
-  function handleCreate() {
+  function handleCreate(defaultRole: 'admin' | 'super_admin' = 'admin') {
     setEditingAdmin(null);
-    setFormData(emptyForm);
+    setFormData({ ...emptyForm, role: defaultRole });
     setFormErrors({});
     setDialogOpen(true);
   }
@@ -168,7 +183,7 @@ export function AdminPage() {
   // Open edit dialog
   function handleEdit(admin: Admin) {
     setEditingAdmin(admin);
-    setFormData({ name: admin.name, email: admin.email, password: '' });
+    setFormData({ name: admin.name, email: admin.email, password: '', role: admin.role as 'admin' | 'super_admin' });
     setFormErrors({});
     setDialogOpen(true);
   }
@@ -180,11 +195,39 @@ export function AdminPage() {
     setFormErrors(errors);
     if (Object.keys(errors).length > 0) return;
 
+    // Warn about creating super admin
+    if (!isEdit && formData.role === 'super_admin') {
+      const confirmed = window.confirm('Are you sure you want to create a Super Admin account? This user will have full system access including the ability to manage other admins.');
+      if (!confirmed) return;
+    }
+
+    // Warn about changing role to super_admin
+    if (isEdit && editingAdmin!.role !== 'super_admin' && formData.role === 'super_admin') {
+      const confirmed = window.confirm('Are you sure you want to promote this user to Super Admin? They will gain full system access.');
+      if (!confirmed) return;
+    }
+
+    // Warn about demoting super_admin
+    if (isEdit && editingAdmin!.role === 'super_admin' && formData.role !== 'super_admin') {
+      // Count how many super admins exist
+      const otherSuperAdmins = admins.filter(a => a.role === 'super_admin' && a.id !== editingAdmin!.id);
+      if (otherSuperAdmins.length === 0) {
+        toast({
+          title: 'Cannot Demote',
+          description: 'There must be at least one Super Admin in the system.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const confirmed = window.confirm('Are you sure you want to demote this Super Admin to a regular Admin? They will lose their elevated privileges.');
+      if (!confirmed) return;
+    }
+
     setSubmitting(true);
     try {
       let res: Response;
       if (isEdit) {
-        const body: Record<string, string> = { name: formData.name, email: formData.email };
+        const body: Record<string, string> = { name: formData.name, email: formData.email, role: formData.role };
         if (formData.password.trim()) body.password = formData.password;
         res = await fetch(`/api/admins/${editingAdmin.id}`, {
           method: 'PUT',
@@ -202,8 +245,8 @@ export function AdminPage() {
 
       if (json.success) {
         toast({
-          title: isEdit ? 'Admin Updated' : 'Admin Created',
-          description: `${formData.name} has been ${isEdit ? 'updated' : 'created'} successfully.`,
+          title: isEdit ? 'Account Updated' : 'Account Created',
+          description: `${formData.name} has been ${isEdit ? 'updated' : 'created'} as ${formData.role === 'super_admin' ? 'Super Admin' : 'Admin'} successfully.`,
         });
         setDialogOpen(false);
         fetchAdmins();
@@ -227,6 +270,17 @@ export function AdminPage() {
 
   // Open delete dialog
   function handleDelete(admin: Admin) {
+    if (admin.role === 'super_admin') {
+      const otherSuperAdmins = admins.filter(a => a.role === 'super_admin' && a.id !== admin.id);
+      if (otherSuperAdmins.length === 0) {
+        toast({
+          title: 'Cannot Delete',
+          description: 'There must be at least one Super Admin in the system. Promote another user first.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
     setDeletingAdmin(admin);
     setDeleteDialogOpen(true);
   }
@@ -240,7 +294,7 @@ export function AdminPage() {
       const json = await res.json();
       if (json.success) {
         toast({
-          title: 'Admin Deleted',
+          title: 'Account Deleted',
           description: `${deletingAdmin.name} has been removed successfully.`,
         });
         setDeleteDialogOpen(false);
@@ -249,7 +303,7 @@ export function AdminPage() {
       } else {
         toast({
           title: 'Error',
-          description: json.error || 'Failed to delete admin',
+          description: json.error || 'Failed to delete account',
           variant: 'destructive',
         });
       }
@@ -283,16 +337,23 @@ export function AdminPage() {
         <div>
           <h2 className="text-2xl font-bold text-white">Admin Management</h2>
           <p className="text-slate-400 mt-1">
-            Create and manage admin accounts for the system.
+            Create and manage admin and super admin accounts for the system.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20">
-            <Shield className="h-3 w-3 mr-1" />
+          <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20">
+            <Crown className="h-3 w-3 mr-1" />
             Super Admin
           </Badge>
           <Button
-            onClick={handleCreate}
+            onClick={() => handleCreate('super_admin')}
+            className="bg-amber-600 hover:bg-amber-700 text-white"
+          >
+            <Crown className="h-4 w-4 mr-2" />
+            Create Super Admin
+          </Button>
+          <Button
+            onClick={() => handleCreate('admin')}
             className="bg-blue-500 hover:bg-blue-600 text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
@@ -312,12 +373,95 @@ export function AdminPage() {
         />
       </div>
 
-      {/* Admin List Table */}
+      {/* Super Admins Section */}
+      {superAdmins.length > 0 && (
+        <Card className="bg-slate-800/50 border-amber-500/20 py-4">
+          <CardHeader className="px-4">
+            <CardTitle className="text-base text-white flex items-center gap-2">
+              <Crown className="h-4 w-4 text-amber-400" />
+              Super Admins
+              <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 ml-2">
+                {superAdmins.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="px-4">
+            <div className="overflow-x-auto rounded-lg">
+              <Table>
+                <TableHeader>
+                  <TableRow className="border-slate-700 hover:bg-transparent">
+                    <TableHead className="text-slate-400 font-semibold">Name</TableHead>
+                    <TableHead className="text-slate-400 font-semibold">Email</TableHead>
+                    <TableHead className="text-slate-400 font-semibold text-center">Role</TableHead>
+                    <TableHead className="text-slate-400 font-semibold">Created</TableHead>
+                    <TableHead className="text-slate-400 font-semibold text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {superAdmins.map((admin) => (
+                    <TableRow key={admin.id} className="border-slate-700/50 hover:bg-slate-700/30">
+                      <TableCell className="text-slate-200 font-medium">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-500/10">
+                            <Crown className="h-4 w-4 text-amber-400" />
+                          </div>
+                          {admin.name}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <Mail className="h-3.5 w-3.5 text-slate-500" />
+                          {admin.email}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
+                          Super Admin
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-slate-400 text-sm">
+                        {formatDate(admin.createdAt)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEdit(admin)}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            <span className="sr-only">Edit</span>
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDelete(admin)}
+                            className="h-8 w-8 p-0 text-slate-400 hover:text-red-400 hover:bg-red-500/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            <span className="sr-only">Delete</span>
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Regular Admins Section */}
       <Card className="bg-slate-800/50 border-slate-700/50 py-4">
         <CardHeader className="px-4">
           <CardTitle className="text-base text-white flex items-center gap-2">
             <UserCog className="h-4 w-4 text-slate-400" />
             Admin Directory
+            <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 ml-2">
+              {regularAdmins.length}
+            </Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="px-4">
@@ -327,13 +471,13 @@ export function AdminPage() {
                 <Skeleton key={i} className="h-12 w-full bg-slate-700 rounded-lg" />
               ))}
             </div>
-          ) : filteredAdmins.length === 0 ? (
+          ) : regularAdmins.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-700/50 mb-4">
                 <Shield className="h-7 w-7 text-slate-500" />
               </div>
               <p className="text-sm font-medium text-slate-400">
-                {searchQuery ? 'No admins match your search' : 'No admins found'}
+                {searchQuery ? 'No admins match your search' : 'No regular admins found'}
               </p>
               <p className="text-xs text-slate-500 mt-1 max-w-sm">
                 {searchQuery
@@ -354,7 +498,7 @@ export function AdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredAdmins.map((admin) => (
+                  {regularAdmins.map((admin) => (
                     <TableRow key={admin.id} className="border-slate-700/50 hover:bg-slate-700/30">
                       <TableCell className="text-slate-200 font-medium">
                         <div className="flex items-center gap-2">
@@ -374,7 +518,7 @@ export function AdminPage() {
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 hover:bg-blue-500/20">
-                          {admin.role === 'admin' ? 'Admin' : admin.role}
+                          Admin
                         </Badge>
                       </TableCell>
                       <TableCell className="text-slate-400 text-sm">
@@ -415,16 +559,64 @@ export function AdminPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="bg-slate-800 border-slate-700 text-slate-200 sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-white">
-              {editingAdmin ? 'Edit Admin' : 'Create Admin'}
+            <DialogTitle className="text-white flex items-center gap-2">
+              {editingAdmin ? (
+                <>
+                  <Pencil className="h-4 w-4 text-blue-400" />
+                  Edit Account
+                </>
+              ) : formData.role === 'super_admin' ? (
+                <>
+                  <Crown className="h-4 w-4 text-amber-400" />
+                  Create Super Admin
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4 text-blue-400" />
+                  Create Admin
+                </>
+              )}
             </DialogTitle>
             <DialogDescription className="text-slate-400">
               {editingAdmin
-                ? 'Update admin account details. Leave password blank to keep unchanged.'
-                : 'Create a new admin account with a secure password.'}
+                ? 'Update account details. Leave password blank to keep unchanged.'
+                : formData.role === 'super_admin'
+                ? 'Create a new Super Admin account with full system access.'
+                : 'Create a new admin account with limited access.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            {/* Role Selection */}
+            <div className="space-y-2">
+              <Label className="text-slate-300">
+                Role <span className="text-red-400">*</span>
+              </Label>
+              <Select
+                value={formData.role}
+                onValueChange={(value: 'admin' | 'super_admin') => setFormData(f => ({ ...f, role: value }))}
+              >
+                <SelectTrigger className="bg-slate-900 border-slate-700 text-slate-200">
+                  <SelectValue placeholder="Select role" />
+                </SelectTrigger>
+                <SelectContent className="bg-slate-800 border-slate-700">
+                  <SelectItem value="admin" className="text-slate-200 focus:bg-slate-700 focus:text-white">
+                    <div className="flex items-center gap-2">
+                      <UserCog className="h-4 w-4 text-blue-400" />
+                      <span>Admin</span>
+                      <span className="text-xs text-slate-400 ml-1">(Limited access)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="super_admin" className="text-slate-200 focus:bg-slate-700 focus:text-white">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-amber-400" />
+                      <span>Super Admin</span>
+                      <span className="text-xs text-slate-400 ml-1">(Full access)</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
             {/* Name */}
             <div className="space-y-2">
               <Label htmlFor="admin-name" className="text-slate-300">
@@ -498,6 +690,21 @@ export function AdminPage() {
                 <p className="text-xs text-red-400">{formErrors.password}</p>
               )}
             </div>
+
+            {/* Super Admin Warning */}
+            {formData.role === 'super_admin' && (
+              <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 px-4 py-3 text-sm text-amber-400">
+                <div className="flex items-start gap-2">
+                  <Crown className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <p className="font-medium">Super Admin Privileges</p>
+                    <p className="text-amber-400/80 text-xs mt-1">
+                      This account will have full system access including managing other admins, creating super admins, and accessing all system features.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button
@@ -511,7 +718,7 @@ export function AdminPage() {
             <Button
               onClick={handleSubmit}
               disabled={submitting}
-              className="bg-blue-500 hover:bg-blue-600 text-white"
+              className={formData.role === 'super_admin' ? 'bg-amber-600 hover:bg-amber-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}
             >
               {submitting ? (
                 <span className="flex items-center gap-2">
@@ -523,12 +730,21 @@ export function AdminPage() {
                   {editingAdmin ? (
                     <>
                       <Pencil className="h-4 w-4 mr-2" />
-                      Update Admin
+                      Update Account
                     </>
                   ) : (
                     <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Create Admin
+                      {formData.role === 'super_admin' ? (
+                        <>
+                          <Crown className="h-4 w-4 mr-2" />
+                          Create Super Admin
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="h-4 w-4 mr-2" />
+                          Create Admin
+                        </>
+                      )}
                     </>
                   )}
                 </>
@@ -543,12 +759,12 @@ export function AdminPage() {
         <AlertDialogContent className="bg-slate-800 border-slate-700 text-slate-200">
           <AlertDialogHeader>
             <AlertDialogTitle className="text-white">
-              Delete Admin Account
+              Delete {deletingAdmin?.role === 'super_admin' ? 'Super Admin' : 'Admin'} Account
             </AlertDialogTitle>
             <AlertDialogDescription className="text-slate-400">
-              Are you sure you want to delete the admin account for{' '}
+              Are you sure you want to delete the {deletingAdmin?.role === 'super_admin' ? 'super admin' : 'admin'} account for{' '}
               <span className="text-white font-semibold">{deletingAdmin?.name}</span>? This action
-              cannot be undone. The admin will lose all access to the system.
+              cannot be undone. The user will lose all access to the system.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="gap-2 sm:gap-0">
