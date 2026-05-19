@@ -235,3 +235,29 @@ Stage Summary:
 - Fixed the database error by removing unsupported `skipDuplicates` Prisma parameter
 - Both GET and PUT endpoints now work correctly
 - Admin menu permissions can be saved and retrieved successfully
+---
+Task ID: 2
+Agent: Main Agent
+Task: Attendance sheet visual improvements and PostgreSQL migration for Railway
+
+Work Log:
+- Read attendance sheet component to understand current layout
+- Increased logo size from h-10 to h-12 (viewport) and 36px to 48px (PDF/print)
+- Positioned logo on the right side of header using flexbox layout with proportional width
+- Header restructured: left spacer | center content (title + subtitle) | right logo
+- Renamed "CODE" column header to "EMP. CODE" in viewport, PDF, and print tables
+- Made all table entries bold with font-weight: bold on td elements and in print CSS
+- Applied Times New Roman bold font for CLIENT NAME and PROJECT NAME fields in both viewport and PDF/print
+- Reduced Name column width (removed fixed width, now auto) and increased Signature column from w-36 to w-40
+- Adjusted column widths for professional layout: SL.NO (w-12), NAME (auto), EMP.CODE (w-24), TRADE (w-40), SIGNATURE (w-40)
+- Text size standardized at 11px across viewport, PDF, and print
+- Created scripts/switch-db.js for switching Prisma provider between SQLite and PostgreSQL
+- Updated railway-start.js to switch to PostgreSQL before db push and generate
+- Updated build script to switch to PostgreSQL during build, then switch back to SQLite
+- Local dev continues using SQLite
+- Pushed all changes to GitHub
+
+Stage Summary:
+- Attendance sheet now has bigger logo on right side, EMP. CODE column, bold entries, Times New Roman for client/project
+- PostgreSQL support added for Railway deployment via switch-db script
+- Code pushed to GitHub: commit 0262d2d
