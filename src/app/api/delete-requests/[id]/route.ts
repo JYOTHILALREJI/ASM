@@ -70,6 +70,12 @@ export async function PUT(
           where: { id: existing.employeeId },
           data: { status: 'deleted' },
         });
+
+        // Mark all uniform registry records for this employee as deleted (hidden)
+        await tx.uniformRegistry.updateMany({
+          where: { employeeId: existing.employeeId, isDeleted: false },
+          data: { isDeleted: true },
+        });
       } else {
         // Rejected: restore employee to active
         await tx.employee.update({
