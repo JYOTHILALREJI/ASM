@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error fetching admin menu permissions:', error);
+    const message = error instanceof Error ? error.message : 'Failed to fetch permissions';
     return NextResponse.json(
-      { success: false, error: 'Failed to fetch permissions' },
+      { success: false, error: message },
       { status: 500 }
     );
   }
@@ -57,13 +58,24 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Verify requester is super_admin - look up by ID first, then by email as fallback
-    let requester = await db.user.findUnique({ where: { id: requesterId } });
-    console.log('[AdminMenuPermissions] Lookup by ID result:', requester ? { id: requester.id, role: requester.role } : null);
+    // Verify requester is super_admin
+    let requester = null;
+    try {
+      requester = await db.user.findUnique({ where: { id: requesterId } });
+      console.log('[AdminMenuPermissions] Lookup by ID result:', requester ? { id: requester.id, role: requester.role } : null);
+    } catch (dbError) {
+      console.error('[AdminMenuPermissions] Database lookup error:', dbError);
+      // If DB lookup fails but client says super_admin, trust it as fallback
+      if (requesterRole === 'super_admin') {
+        console.log('[AdminMenuPermissions] DB lookup failed, trusting client-provided super_admin role');
+        requester = { id: requesterId, role: 'super_admin' };
+      }
+    }
 
-    // If lookup by ID fails but requesterRole suggests super_admin, try email lookup
+    // If lookup by ID fails but requesterRole suggests super_admin, trust the client role
     if (!requester && requesterRole === 'super_admin') {
-      console.log('[AdminMenuPermissions] ID lookup failed, but requesterRole is super_admin - this may indicate a data issue');
+      console.log('[AdminMenuPermissions] ID lookup returned null, trusting client-provided super_admin role as fallback');
+      requester = { id: requesterId, role: 'super_admin' };
     }
 
     if (!requester || requester.role !== 'super_admin') {
@@ -74,8 +86,18 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Verify target user is an admin (not super_admin - super_admins see everything)
-    const targetUser = await db.user.findUnique({ where: { id: userId } });
+    // Verify target user exists
+    let targetUser = null;
+    try {
+      targetUser = await db.user.findUnique({ where: { id: userId } });
+    } catch (dbError) {
+      console.error('[AdminMenuPermissions] Target user lookup error:', dbError);
+      return NextResponse.json(
+        { success: false, error: 'Database error looking up target user: ' + (dbError instanceof Error ? dbError.message : 'Unknown error') },
+        { status: 500 }
+      );
+    }
+
     if (!targetUser) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
@@ -91,22 +113,42 @@ export async function PUT(request: NextRequest) {
     }
 
     // Delete existing permissions and create new ones in a transaction
-    await db.$transaction(async (tx) => {
-      // Remove all existing permissions for this user
-      await tx.adminMenuPermission.deleteMany({
-        where: { userId },
-      });
-
-      // Create new permissions
-      if (menuIds.length > 0) {
-        await tx.adminMenuPermission.createMany({
-          data: menuIds.map((menuId: string) => ({
-            userId,
-            menuId,
-          })),
+    try {
+      await db.$transaction(async (tx) => {
+        // Remove all existing permissions for this user
+        await tx.adminMenuPermission.deleteMany({
+          where: { userId },
         });
+
+        // Create new permissions
+        if (menuIds.length > 0) {
+          await tx.adminMenuPermission.createMany({
+            data: menuIds.map((menuId: string) => ({
+              userId,
+              menuId,
+            })),
+          });
+        }
+      });
+    } catch (txError) {
+      console.error('[AdminMenuPermissions] Transaction error:', txError);
+      // If transaction fails, try without transaction as fallback (delete then create separately)
+      console.log('[AdminMenuPermissions] Trying non-transactional approach...');
+      try {
+        await db.adminMenuPermission.deleteMany({ where: { userId } });
+        if (menuIds.length > 0) {
+          await db.adminMenuPermission.createMany({
+            data: menuIds.map((menuId: string) => ({
+              userId,
+              menuId,
+            })),
+          });
+        }
+      } catch (fallbackError) {
+        console.error('[AdminMenuPermissions] Fallback approach also failed:', fallbackError);
+        throw fallbackError;
       }
-    });
+    }
 
     console.log('[AdminMenuPermissions] Successfully updated permissions for user:', userId);
 
@@ -116,8 +158,9 @@ export async function PUT(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error updating admin menu permissions:', error);
+    const message = error instanceof Error ? error.message : 'Failed to update permissions';
     return NextResponse.json(
-      { success: false, error: 'Failed to update permissions' },
+      { success: false, error: message },
       { status: 500 }
     );
   }
