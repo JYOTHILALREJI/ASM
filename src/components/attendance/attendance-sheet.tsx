@@ -30,7 +30,7 @@ interface AttendanceSheetProps {
 /* ───────── Constants ───────── */
 const A4_WIDTH_MM = 210;
 const A4_HEIGHT_MM = 297;
-const ROWS_PER_PAGE = 28;
+const ROWS_PER_PAGE = 24;
 const EXTRA_ROWS = 5;
 const HEADER_BG = '#bbbcbd';
 const HEADER_TEXT = '#000';
@@ -102,8 +102,8 @@ function tableHeaderHtml(): string {
     <tr>
       <th style="width:40px;">SL. NO</th>
       <th style="text-align:left;">NAME</th>
-      <th style="width:80px;">EMP. CODE</th>
-      <th style="width:140px; text-align:left;">TRADE</th>
+      <th style="width:99px;">EMP. CODE</th>
+      <th style="width:159px; text-align:left;">TRADE</th>
       <th style="width:140px;">SIGNATURE</th>
     </tr>
   `;
@@ -273,7 +273,7 @@ function getPrintCSS(): string {
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 12px;
+      font-size: 13px;
       text-transform: uppercase;
     }
     thead tr {
@@ -284,12 +284,12 @@ function getPrintCSS(): string {
     }
     th, td {
       border: 1px solid #000;
-      padding: 4px 6px;
+      padding: 8px 6px;
     }
     th {
       font-weight: bold;
       text-align: center;
-      font-size: 13px;
+      font-size: 14px;
     }
     td {
       font-weight: bold;
@@ -361,7 +361,7 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
 
   const getDisplayTrade = useCallback((emp: { isTeamLeader: boolean; isSupervisor?: boolean; position?: string }) => {
     const pos = emp.position || '';
-    if (emp.isTeamLeader) return pos ? `${pos} / TEAM LEADER` : 'TEAM LEADER';
+    if (emp.isTeamLeader) return pos ? `${pos} / TL` : 'TL';
     if (emp.isSupervisor) return pos ? `${pos} / SUPERVISOR` : 'SUPERVISOR';
     return pos;
   }, []);
@@ -681,14 +681,14 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
 
                 {/* Main Employee Table */}
                 <div className="mt-4 pb-2">
-                  <table className="w-full border-collapse text-[12px] uppercase">
+                  <table className="w-full border-collapse text-[13px] uppercase">
                     <thead>
                       <tr style={{ background: HEADER_BG, color: HEADER_TEXT }}>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-12 text-[13px] uppercase">SL. NO</th>
-                        <th className="border border-black px-2 py-1.5 text-left font-bold text-[13px] uppercase">NAME</th>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-24 text-[13px] uppercase">EMP. CODE</th>
-                        <th className="border border-black px-2 py-1.5 text-left font-bold w-40 text-[13px] uppercase">TRADE</th>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-40 text-[13px] uppercase">SIGNATURE</th>
+                        <th className="border border-black px-2 py-2 text-center font-bold w-12 text-[14px] uppercase">SL. NO</th>
+                        <th className="border border-black px-2 py-2 text-left font-bold text-[14px] uppercase">NAME</th>
+                        <th className="border border-black px-2 py-2 text-center font-bold w-[115px] text-[14px] uppercase">EMP. CODE</th>
+                        <th className="border border-black px-2 py-2 text-left font-bold w-[179px] text-[14px] uppercase">TRADE</th>
+                        <th className="border border-black px-2 py-2 text-center font-bold w-40 text-[14px] uppercase">SIGNATURE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -705,18 +705,18 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                               row.isSupervisor && !row.isTeamLeader && 'bg-blue-50'
                             )}
                           >
-                            <td className="border border-black px-2 py-1 text-center text-gray-700 font-bold">{serialNo}</td>
-                            <td className="border border-black px-1 py-0">
-                              <EditableCell value={upper(row.fullName || '')} onChange={(val) => updateEmployee(row.id!, 'fullName', val)} className="py-0.5 text-gray-900 font-bold text-[12px] uppercase" uppercase />
+                            <td className="border border-black px-2 py-1.5 text-center text-gray-700 font-bold">{serialNo}</td>
+                            <td className="border border-black px-1 py-1">
+                              <EditableCell value={upper(row.fullName || '')} onChange={(val) => updateEmployee(row.id!, 'fullName', val)} className="py-0.5 text-gray-900 font-bold text-[13px] uppercase" uppercase />
                             </td>
-                            <td className="border border-black px-1 py-0 text-center">
-                              <EditableCell value={upper(row.code || '')} onChange={(val) => updateEmployee(row.id!, 'code', val)} className="py-0.5 text-gray-700 text-center font-mono font-bold text-[12px] uppercase" align="center" uppercase />
+                            <td className="border border-black px-1 py-1 text-center">
+                              <EditableCell value={upper(row.code || '')} onChange={(val) => updateEmployee(row.id!, 'code', val)} className="py-0.5 text-gray-700 text-center font-mono font-bold text-[13px] uppercase" align="center" uppercase />
                             </td>
-                            <td className="border border-black px-1 py-0">
-                              <EditableCell value={upper(getDisplayTrade(row as typeof sortedEmployees[0] & { type: string }))} onChange={(val) => { const baseVal = val.replace(/ \/ (TEAM LEADER|SUPERVISOR)$/i, ''); updateEmployee(row.id!, 'position', baseVal); }} className="py-0.5 text-gray-700 uppercase font-bold text-[12px]" uppercase />
+                            <td className="border border-black px-1 py-1">
+                              <EditableCell value={upper(getDisplayTrade(row as typeof sortedEmployees[0] & { type: string }))} onChange={(val) => { const baseVal = val.replace(/ \/ (TL|SUPERVISOR)$/i, ''); updateEmployee(row.id!, 'position', baseVal); }} className="py-0.5 text-gray-700 uppercase font-bold text-[13px]" uppercase />
                             </td>
-                            <td className="border border-black px-2 py-1 text-center">
-                              <EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px]" align="center" />
+                            <td className="border border-black px-2 py-1.5 text-center">
+                              <EditableCell value="" onChange={() => {}} className="py-0.5 text-[13px]" align="center" />
                             </td>
                           </tr>
                         );
@@ -729,17 +729,17 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                 {/* Extra Employees Table (only on last page) */}
                 {isLastPage && (
                   <div className="mt-3 pb-4">
-                    <div className="text-[12px] font-bold uppercase tracking-[0.05em] text-black mb-1">
+                    <div className="text-[13px] font-bold uppercase tracking-[0.05em] text-black mb-1">
                       EXTRA EMPLOYEES(IF ANY)
                     </div>
-                    <table className="w-full border-collapse text-[12px] uppercase">
+                    <table className="w-full border-collapse text-[13px] uppercase">
                       <thead>
                         <tr style={{ background: HEADER_BG, color: HEADER_TEXT }}>
-                          <th className="border border-black px-2 py-1.5 text-center font-bold w-12 text-[13px] uppercase">SL. NO</th>
-                          <th className="border border-black px-2 py-1.5 text-left font-bold text-[13px] uppercase">NAME</th>
-                          <th className="border border-black px-2 py-1.5 text-center font-bold w-24 text-[13px] uppercase">EMP. CODE</th>
-                          <th className="border border-black px-2 py-1.5 text-left font-bold w-40 text-[13px] uppercase">TRADE</th>
-                          <th className="border border-black px-2 py-1.5 text-center font-bold w-40 text-[13px] uppercase">SIGNATURE</th>
+                          <th className="border border-black px-2 py-2 text-center font-bold w-12 text-[14px] uppercase">SL. NO</th>
+                          <th className="border border-black px-2 py-2 text-left font-bold text-[14px] uppercase">NAME</th>
+                          <th className="border border-black px-2 py-2 text-center font-bold w-[115px] text-[14px] uppercase">EMP. CODE</th>
+                          <th className="border border-black px-2 py-2 text-left font-bold w-[179px] text-[14px] uppercase">TRADE</th>
+                          <th className="border border-black px-2 py-2 text-center font-bold w-40 text-[14px] uppercase">SIGNATURE</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -747,11 +747,11 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                           const serialNo = sortedEmployees.length + idx + 1;
                           return (
                             <tr key={`extra-${idx}`} className="bg-white">
-                              <td className="border border-black px-2 py-1 text-center text-gray-400 text-[12px] font-bold">{serialNo}</td>
-                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px] font-bold" /></td>
-                              <td className="border border-black px-1 py-0 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px] font-bold" align="center" /></td>
-                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px] font-bold" /></td>
-                              <td className="border border-black px-2 py-1 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px]" align="center" /></td>
+                              <td className="border border-black px-2 py-1.5 text-center text-gray-400 text-[13px] font-bold">{serialNo}</td>
+                              <td className="border border-black px-1 py-1"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[13px] font-bold" /></td>
+                              <td className="border border-black px-1 py-1 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[13px] font-bold" align="center" /></td>
+                              <td className="border border-black px-1 py-1"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[13px] font-bold" /></td>
+                              <td className="border border-black px-2 py-1.5 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[13px]" align="center" /></td>
                             </tr>
                           );
                         })}
