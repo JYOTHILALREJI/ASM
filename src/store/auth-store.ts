@@ -16,6 +16,7 @@ interface AuthState {
   setUser: (user: UserSession | null) => void;
   setLoading: (loading: boolean) => void;
   logout: () => void;
+  updateUser: (updates: Partial<UserSession>) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -37,6 +38,16 @@ export const useAuthStore = create<AuthState>((set) => ({
       localStorage.removeItem('asm_user');
     }
     set({ user: null, isLoading: false });
+  },
+  updateUser: (updates) => {
+    set((state) => {
+      if (!state.user) return state;
+      const updatedUser = { ...state.user, ...updates };
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('asm_user', JSON.stringify(updatedUser));
+      }
+      return { user: updatedUser };
+    });
   },
   init: () => {
     if (typeof window !== 'undefined') {

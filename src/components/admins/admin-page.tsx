@@ -106,7 +106,7 @@ const emptyForm: AdminFormData = {
 };
 
 export function AdminPage() {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const { toast } = useToast();
 
   const [admins, setAdmins] = useState<Admin[]>([]);
@@ -401,9 +401,15 @@ export function AdminPage() {
       });
       const data = await res.json();
       if (data.success) {
+        // If the currently logged-in user is the admin whose permissions were changed,
+        // update their allowedMenus in the auth store immediately so the sidebar reflects changes
+        if (user && user.id === permissionsAdmin.id && user.role === 'admin') {
+          updateUser({ allowedMenus: selectedMenus });
+        }
+
         toast({
           title: 'Permissions Updated',
-          description: `Menu access for ${permissionsAdmin.name} has been updated. They will see changes on next login.`,
+          description: `Menu access for ${permissionsAdmin.name} has been updated successfully.`,
         });
         setPermissionsDialogOpen(false);
         setPermissionsAdmin(null);

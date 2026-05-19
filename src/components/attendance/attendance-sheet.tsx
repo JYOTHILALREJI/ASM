@@ -138,7 +138,7 @@ function buildPageHtml(params: {
         <div style="flex:1;"></div>
         <div style="flex:0 0 auto; text-align:center;">
           <div style="font-size:16px; font-weight:bold; text-align:center; text-transform:uppercase; letter-spacing:0.08em; color:#000;">ARABIAN SHIELD MANPOWER</div>
-          <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:5px; font-size:11px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:6px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
+          <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:5px; font-size:13px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:6px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
         </div>
         <div style="flex:1; display:flex; justify-content:flex-end; align-items:center;">
           <img src="/logo_asm.png" alt="ASM" style="height:48px; width:auto;" />
@@ -148,7 +148,7 @@ function buildPageHtml(params: {
 
     // Info Section
     html += `
-      <div style="font-size:11px; text-transform:uppercase; margin-bottom:8px; line-height:1.8; padding:0 4px;">
+      <div style="font-size:12px; text-transform:uppercase; margin-bottom:8px; line-height:1.8; padding:0 4px;">
         <div style="display:flex; align-items:baseline; margin-bottom:2px;">
           <span style="font-weight:bold; width:130px; flex-shrink:0; font-family:'Times New Roman', Times, serif;">&#8226; CLIENT NAME :</span>
           <span style="flex:1; border-bottom:1px solid #555; padding:0 4px; min-height:16px; font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(clientName)}</span>
@@ -171,9 +171,9 @@ function buildPageHtml(params: {
     html += `
       <div style="position:relative; border:1px solid #000; background:#E8E8E8; padding:6px 12px; margin-bottom:8px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">
         <div style="font-size:14px; font-weight:bold; text-align:center; text-transform:uppercase; letter-spacing:0.08em; color:#000;">ARABIAN SHIELD MANPOWER</div>
-        <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:4px; font-size:10px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:4px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
+        <div style="background:${HEADER_BG}; color:${HEADER_TEXT}; text-align:center; padding:4px; font-size:13px; font-weight:bold; letter-spacing:0.15em; text-transform:uppercase; margin-top:4px; -webkit-print-color-adjust:exact; print-color-adjust:exact;">DAILY ATTENDANCE</div>
       </div>
-      <div style="display:flex; justify-content:space-between; font-size:10px; margin-bottom:8px; text-transform:uppercase; color:#374151;">
+      <div style="display:flex; justify-content:space-between; font-size:12px; margin-bottom:8px; text-transform:uppercase; color:#374151;">
         <span><strong style="font-family:'Times New Roman', Times, serif;">CLIENT:</strong> <span style="font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(clientName)}</span> &nbsp;&nbsp; <strong style="font-family:'Times New Roman', Times, serif;">PROJECT:</strong> <span style="font-family:'Times New Roman', Times, serif; font-weight:bold;">${upper(projectName)}</span></span>
         <span><strong>DATE:</strong> ${upper(dateInput)}</span>
       </div>
@@ -219,7 +219,7 @@ function buildPageHtml(params: {
   if (isLastPage && extraRows.length > 0) {
     const extraStartNo = sortedEmployees.length + 1;
     html += `
-      <div style="margin-top:12px; margin-bottom:4px; font-size:11px; font-weight:bold; text-transform:uppercase; letter-spacing:0.05em; color:#000;">EXTRA EMPLOYEES(IF ANY)</div>
+      <div style="margin-top:12px; margin-bottom:4px; font-size:12px; font-weight:bold; text-transform:uppercase; letter-spacing:0.05em; color:#000;">EXTRA EMPLOYEES(IF ANY)</div>
       <table>
         <thead>
           ${tableHeaderHtml()}
@@ -273,7 +273,7 @@ function getPrintCSS(): string {
     table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11px;
+      font-size: 12px;
       text-transform: uppercase;
     }
     thead tr {
@@ -289,7 +289,7 @@ function getPrintCSS(): string {
     th {
       font-weight: bold;
       text-align: center;
-      font-size: 11px;
+      font-size: 13px;
     }
     td {
       font-weight: bold;
@@ -619,7 +619,7 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                         <h1 className="text-[16px] font-bold text-black tracking-[0.08em] uppercase">
                           ARABIAN SHIELD MANPOWER
                         </h1>
-                        <div className="mt-1.5 text-center py-1.5 text-[11px] font-bold tracking-[0.15em] uppercase" style={{ background: HEADER_BG, color: HEADER_TEXT }}>
+                        <div className="mt-1.5 text-center py-1.5 text-[13px] font-bold tracking-[0.15em] uppercase" style={{ background: HEADER_BG, color: HEADER_TEXT }}>
                           DAILY ATTENDANCE
                         </div>
                       </div>
@@ -635,29 +635,29 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                     </div>
 
                     {/* Info Section */}
-                    <div className="mt-4 text-[11px] uppercase">
+                    <div className="mt-4 text-[12px] uppercase">
                       <div className="flex items-baseline mb-1.5">
                         <span className="font-bold text-gray-900 w-36 shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>&#8226; CLIENT NAME :</span>
                         <span className="flex-1 border-b border-gray-500" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>
-                          <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }} />
+                          <input type="text" value={clientName} onChange={(e) => setClientName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }} />
                         </span>
                       </div>
                       <div className="flex items-baseline mb-1.5">
                         <span className="font-bold text-gray-900 w-36 shrink-0" style={{ fontFamily: "'Times New Roman', Times, serif" }}>&#8226; PROJECT NAME :</span>
                         <span className="flex-1 border-b border-gray-500" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>
-                          <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }} />
+                          <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }} />
                         </span>
                       </div>
                       <div className="flex items-baseline mb-1.5">
                         <span className="font-bold text-gray-900 w-36 shrink-0">&#8226; DATE :</span>
                         <span className="flex-1 border-b border-gray-500">
-                          <input type="text" value={dateInput} onChange={(e) => handleDateChange(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] font-mono uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
+                          <input type="text" value={dateInput} onChange={(e) => handleDateChange(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] font-mono uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
                         </span>
                       </div>
                       <div className="flex items-baseline mb-1.5">
                         <span className="font-bold text-gray-900 w-36 shrink-0">&#8226; STRENGTH :</span>
                         <span className="flex-1 border-b border-gray-500">
-                          <input type="text" value={strengthInput} onChange={(e) => setStrengthInput(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[11px] font-semibold uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
+                          <input type="text" value={strengthInput} onChange={(e) => setStrengthInput(e.target.value.toUpperCase())} className="w-full bg-transparent border-none outline-none text-gray-800 text-[12px] font-semibold uppercase hover:bg-blue-50/60 focus:bg-blue-50/80 focus:outline-1 focus:outline-blue-300 transition-colors rounded px-1 -mx-1 cursor-text py-0.5" />
                         </span>
                       </div>
                     </div>
@@ -668,11 +668,11 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                       <h1 className="text-[15px] font-bold text-center text-black tracking-[0.08em] uppercase">
                         ARABIAN SHIELD MANPOWER
                       </h1>
-                      <div className="mt-1 text-center py-1 text-[10px] font-bold tracking-[0.15em] uppercase" style={{ background: HEADER_BG, color: HEADER_TEXT }}>
+                      <div className="mt-1 text-center py-1 text-[13px] font-bold tracking-[0.15em] uppercase" style={{ background: HEADER_BG, color: HEADER_TEXT }}>
                         DAILY ATTENDANCE
                       </div>
                     </div>
-                    <div className="mt-3 flex justify-between text-[11px] uppercase text-gray-600">
+                    <div className="mt-3 flex justify-between text-[12px] uppercase text-gray-600">
                       <span><strong style={{ fontFamily: "'Times New Roman', Times, serif" }}>CLIENT:</strong> <span style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>{upper(clientName)}</span> &nbsp;&nbsp; <strong style={{ fontFamily: "'Times New Roman', Times, serif" }}>PROJECT:</strong> <span style={{ fontFamily: "'Times New Roman', Times, serif", fontWeight: 'bold' }}>{upper(projectName)}</span></span>
                       <span><strong>DATE:</strong> {upper(dateInput)}</span>
                     </div>
@@ -681,14 +681,14 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
 
                 {/* Main Employee Table */}
                 <div className="mt-4 pb-2">
-                  <table className="w-full border-collapse text-[11px] uppercase">
+                  <table className="w-full border-collapse text-[12px] uppercase">
                     <thead>
                       <tr style={{ background: HEADER_BG, color: HEADER_TEXT }}>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-12 uppercase">SL. NO</th>
-                        <th className="border border-black px-2 py-1.5 text-left font-bold uppercase">NAME</th>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-24 uppercase">EMP. CODE</th>
-                        <th className="border border-black px-2 py-1.5 text-left font-bold w-40 uppercase">TRADE</th>
-                        <th className="border border-black px-2 py-1.5 text-center font-bold w-40 uppercase">SIGNATURE</th>
+                        <th className="border border-black px-2 py-1.5 text-center font-bold w-12 text-[13px] uppercase">SL. NO</th>
+                        <th className="border border-black px-2 py-1.5 text-left font-bold text-[13px] uppercase">NAME</th>
+                        <th className="border border-black px-2 py-1.5 text-center font-bold w-24 text-[13px] uppercase">EMP. CODE</th>
+                        <th className="border border-black px-2 py-1.5 text-left font-bold w-40 text-[13px] uppercase">TRADE</th>
+                        <th className="border border-black px-2 py-1.5 text-center font-bold w-40 text-[13px] uppercase">SIGNATURE</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -707,16 +707,16 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                           >
                             <td className="border border-black px-2 py-1 text-center text-gray-700 font-bold">{serialNo}</td>
                             <td className="border border-black px-1 py-0">
-                              <EditableCell value={upper(row.fullName || '')} onChange={(val) => updateEmployee(row.id!, 'fullName', val)} className="py-0.5 text-gray-900 font-bold text-[11px] uppercase" uppercase />
+                              <EditableCell value={upper(row.fullName || '')} onChange={(val) => updateEmployee(row.id!, 'fullName', val)} className="py-0.5 text-gray-900 font-bold text-[12px] uppercase" uppercase />
                             </td>
                             <td className="border border-black px-1 py-0 text-center">
-                              <EditableCell value={upper(row.code || '')} onChange={(val) => updateEmployee(row.id!, 'code', val)} className="py-0.5 text-gray-700 text-center font-mono font-bold text-[11px] uppercase" align="center" uppercase />
+                              <EditableCell value={upper(row.code || '')} onChange={(val) => updateEmployee(row.id!, 'code', val)} className="py-0.5 text-gray-700 text-center font-mono font-bold text-[12px] uppercase" align="center" uppercase />
                             </td>
                             <td className="border border-black px-1 py-0">
-                              <EditableCell value={upper(getDisplayTrade(row as typeof sortedEmployees[0] & { type: string }))} onChange={(val) => { const baseVal = val.replace(/ \/ (TEAM LEADER|SUPERVISOR)$/i, ''); updateEmployee(row.id!, 'position', baseVal); }} className="py-0.5 text-gray-700 uppercase font-bold text-[11px]" uppercase />
+                              <EditableCell value={upper(getDisplayTrade(row as typeof sortedEmployees[0] & { type: string }))} onChange={(val) => { const baseVal = val.replace(/ \/ (TEAM LEADER|SUPERVISOR)$/i, ''); updateEmployee(row.id!, 'position', baseVal); }} className="py-0.5 text-gray-700 uppercase font-bold text-[12px]" uppercase />
                             </td>
                             <td className="border border-black px-2 py-1 text-center">
-                              <EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" align="center" />
+                              <EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px]" align="center" />
                             </td>
                           </tr>
                         );
@@ -729,10 +729,10 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                 {/* Extra Employees Table (only on last page) */}
                 {isLastPage && (
                   <div className="mt-3 pb-4">
-                    <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-black mb-1">
+                    <div className="text-[12px] font-bold uppercase tracking-[0.05em] text-black mb-1">
                       EXTRA EMPLOYEES(IF ANY)
                     </div>
-                    <table className="w-full border-collapse text-[11px] uppercase">
+                    <table className="w-full border-collapse text-[12px] uppercase">
                       <thead>
                         <tr style={{ background: HEADER_BG, color: HEADER_TEXT }}>
                           <th className="border border-black px-2 py-1.5 text-center font-bold w-12 uppercase">SL. NO</th>
@@ -747,11 +747,11 @@ export function AttendanceSheet({ site, employees, onClose }: AttendanceSheetPro
                           const serialNo = sortedEmployees.length + idx + 1;
                           return (
                             <tr key={`extra-${idx}`} className="bg-white">
-                              <td className="border border-black px-2 py-1 text-center text-gray-400 text-[11px] font-bold">{serialNo}</td>
-                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px] font-bold" /></td>
-                              <td className="border border-black px-1 py-0 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px] font-bold" align="center" /></td>
-                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px] font-bold" /></td>
-                              <td className="border border-black px-2 py-1 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[11px]" align="center" /></td>
+                              <td className="border border-black px-2 py-1 text-center text-gray-400 text-[12px] font-bold">{serialNo}</td>
+                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px] font-bold" /></td>
+                              <td className="border border-black px-1 py-0 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px] font-bold" align="center" /></td>
+                              <td className="border border-black px-1 py-0"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px] font-bold" /></td>
+                              <td className="border border-black px-2 py-1 text-center"><EditableCell value="" onChange={() => {}} className="py-0.5 text-[12px]" align="center" /></td>
                             </tr>
                           );
                         })}

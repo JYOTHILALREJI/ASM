@@ -42,22 +42,20 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { userId, menuIds, requesterId } = body;
 
-    if (!userId || !Array.isArray(menuIds)) {
+    if (!userId || !Array.isArray(menuIds) || !requesterId) {
       return NextResponse.json(
-        { success: false, error: 'userId and menuIds array are required' },
+        { success: false, error: 'userId, menuIds array, and requesterId are required' },
         { status: 400 }
       );
     }
 
     // Verify requester is super_admin
-    if (requesterId) {
-      const requester = await db.user.findUnique({ where: { id: requesterId } });
-      if (!requester || requester.role !== 'super_admin') {
-        return NextResponse.json(
-          { success: false, error: 'Only super admins can manage menu permissions' },
-          { status: 403 }
-        );
-      }
+    const requester = await db.user.findUnique({ where: { id: requesterId } });
+    if (!requester || requester.role !== 'super_admin') {
+      return NextResponse.json(
+        { success: false, error: 'Only super admins can manage menu permissions' },
+        { status: 403 }
+      );
     }
 
     // Verify target user is an admin (not super_admin - super_admins see everything)

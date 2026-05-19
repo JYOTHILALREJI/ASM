@@ -66,12 +66,12 @@ function MainLayout() {
   const { user } = useAuthStore();
   const isMobile = useIsMobile();
 
-  // Redirect normal admins away from restricted views
+  // Redirect normal admins away from restricted views (also reacts to permission changes)
   React.useEffect(() => {
     if (user && user.role === 'admin' && !isAdminAllowedView(user, currentView)) {
       setCurrentView('dashboard');
     }
-  }, [user, currentView, setCurrentView]);
+  }, [user, currentView, setCurrentView, user?.allowedMenus]);
 
   const renderView = () => {
     // Block normal admins from accessing restricted views
