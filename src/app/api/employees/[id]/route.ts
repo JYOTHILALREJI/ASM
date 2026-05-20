@@ -117,6 +117,34 @@ export async function PUT(
       data.rating = body.rating;
     }
 
+    // Prevent dual site assignment: if setting currentSite, verify the site is active and employee isn't already in another site
+    if (body.currentSite !== undefined && body.currentSite !== null && body.currentSite !== '') {
+      // Check that the employee isn't already assigned to a different site
+      if (existing.currentSite && existing.currentSite !== body.currentSite) {
+        // Employee is being transferred - this is allowed, just verify the new site exists and is active
+        const targetSite = await db.site.findFirst({
+          where: { name: body.currentSite, isActive: true },
+        });
+        if (!targetSite) {
+          return NextResponse.json(
+            { success: false, error: `Site "${body.currentSite}" does not exist or is inactive. Cannot assign employee to an inactive site.` },
+            { status: 400 }
+          );
+        }
+      } else if (!existing.currentSite) {
+        // Employee has no site, verify the new site exists and is active
+        const targetSite = await db.site.findFirst({
+          where: { name: body.currentSite, isActive: true },
+        });
+        if (!targetSite) {
+          return NextResponse.json(
+            { success: false, error: `Site "${body.currentSite}" does not exist or is inactive. Cannot assign employee to an inactive site.` },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Handle team leader fields
     if (body.isTeamLeader !== undefined) {
       if (body.isTeamLeader === true) {
@@ -208,13 +236,43 @@ export async function DELETE(
 
     const employee = await db.employee.update({
       where: { id },
-      data: { status: 'deleted' },
+      data: { 
+        status: 'deleted',
+        currentSite: null,
+        isTeamLeader: false,
+        teamLeaderSiteId: null,
+      },
     });
 
     // Mark all uniform registry records for this employee as deleted
     await db.uniformRegistry.updateMany({
       where: { employeeId: id, isDeleted: false },
       data: { isDeleted: true },
+    });
+
+    // Delete all attendance records for this employee (they have cascade, but let's be explicit)
+    await db.attendance.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // Delete all warnings for this employee
+    await db.warning.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // Delete all fines for this employee
+    await db.fine.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // Delete all leave requests for this employee
+    await db.leaveRequest.deleteMany({
+      where: { employeeId: id },
+    });
+
+    // Delete all cancellation requests for this employee
+    await db.cancellationRequest.deleteMany({
+      where: { employeeId: id },
     });
 
     return NextResponse.json({

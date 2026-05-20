@@ -6,7 +6,11 @@ export async function GET(request: NextRequest) {
     const searchParams = request.nextUrl.searchParams;
     const employeeId = searchParams.get('employeeId');
 
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = {
+      employee: {
+        status: { not: 'deleted' },
+      },
+    };
 
     if (employeeId) {
       where.employeeId = employeeId;

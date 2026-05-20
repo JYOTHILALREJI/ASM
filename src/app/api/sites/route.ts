@@ -169,6 +169,34 @@ export async function PUT(request: NextRequest) {
       });
     }
 
+    // If site is being deactivated, unassign all employees
+    let unassignedCount = 0;
+    if (isActive === false && existing.isActive === true) {
+      unassignedCount = await db.employee.count({
+        where: { currentSite: trimmedName, status: { not: 'deleted' } },
+      });
+
+      // Clear team leader status for employees who are team leaders of this site
+      await db.employee.updateMany({
+        where: {
+          currentSite: trimmedName,
+          isTeamLeader: true,
+          teamLeaderSiteId: id,
+        },
+        data: {
+          isTeamLeader: false,
+          teamLeaderSiteId: null,
+          currentSite: null,
+        },
+      });
+
+      // Clear currentSite for all other employees at this site
+      await db.employee.updateMany({
+        where: { currentSite: trimmedName },
+        data: { currentSite: null },
+      });
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -177,6 +205,7 @@ export async function PUT(request: NextRequest) {
           createdAt: site.createdAt.toISOString(),
         },
         oldName,
+        unassignedCount,
       },
     });
   } catch (error: unknown) {

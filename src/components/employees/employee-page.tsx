@@ -72,6 +72,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/auth-store';
+import { useAppStore } from '@/store/app-store';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -439,6 +440,7 @@ function compressImage(file: File, maxWidth = 300, quality = 0.8): Promise<strin
 export function EmployeePage() {
   const { user } = useAuthStore();
   const { toast } = useToast();
+  const { employeeFilter, navigateToEmployees } = useAppStore();
 
   // ── State ──
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -564,6 +566,14 @@ export function EmployeePage() {
   useEffect(() => {
     setPage(1);
   }, [statusFilter]);
+
+  // Apply employeeFilter from app store when navigating to this page
+  useEffect(() => {
+    if (employeeFilter) {
+      setStatusFilter(employeeFilter);
+      navigateToEmployees(''); // Clear the filter so it doesn't re-apply on re-renders
+    }
+  }, [employeeFilter, navigateToEmployees]);
 
   // ── Handlers ──
 

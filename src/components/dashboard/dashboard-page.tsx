@@ -8,10 +8,14 @@ import {
   Clock,
   Building2,
   CalendarDays,
-  ChevronDown,
+  Eye,
+  UserX,
+  ArrowRight,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Select,
   SelectContent,
@@ -27,7 +31,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import {
   BarChart,
@@ -42,6 +45,7 @@ import {
   Cell,
   Legend,
 } from 'recharts';
+import { useAppStore } from '@/store/app-store';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -71,10 +75,17 @@ interface EmployeeRecord {
   currentSite: string | null;
 }
 
+interface SiteInfo {
+  id: string;
+  name: string;
+  isActive: boolean;
+}
+
 interface SiteGroup {
   name: string;
   count: number;
   statuses: Record<string, number>;
+  siteId?: string;
 }
 
 interface MonthlyChartData {
@@ -119,9 +130,12 @@ export function DashboardPage() {
   const [totalEmployees, setTotalEmployees] = useState<number | null>(null);
   const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
+  const [sitesInfo, setSitesInfo] = useState<SiteInfo[]>([]);
 
   const [loadingEmployees, setLoadingEmployees] = useState(true);
   const [loadingAttendance, setLoadingAttendance] = useState(true);
+
+  const { setCurrentView, navigateToEmployees } = useAppStore();
 
   const monthNum = parseInt(month, 10);
   const yearNum = parseInt(year, 10);
@@ -170,6 +184,19 @@ export function DashboardPage() {
     }
   }, []);
 
+  // Fetch sites info
+  const fetchSites = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sites');
+      const json = await res.json();
+      if (json.success) {
+        setSitesInfo(json.data.sites || []);
+      }
+    } catch {
+      setSitesInfo([]);
+    }
+  }, []);
+
   // Fetch attendance for current month/year
   const fetchAttendance = useCallback(async (m: string, y: string) => {
     try {
@@ -191,7 +218,8 @@ export function DashboardPage() {
 
   useEffect(() => {
     fetchEmployees();
-  }, [fetchEmployees]);
+    fetchSites();
+  }, [fetchEmployees, fetchSites]);
 
   useEffect(() => {
     fetchAttendance(month, year);
@@ -217,6 +245,7 @@ export function DashboardPage() {
   const presentCount = selectedDateRecords.filter((r) => r.status === 'present').length;
   const absentCount = selectedDateRecords.filter((r) => r.status === 'absent').length;
   const overtimeCount = selectedDateRecords.filter((r) => r.status === 'overtime').length;
+  const noSiteCount = selectedDateRecords.filter((r) => r.status === 'no_site').length;
 
   const selectedDateDisplay = useMemo(() => {
     try {
@@ -266,22 +295,31 @@ export function DashboardPage() {
 
   // Compute pie chart data
   const pieData = useMemo(() => {
-    const active = employees.filter((e) => e.status === 'active').length;
+    const active = employees.filter((e) => e.status === 'active' && e.currentSite).length;
+    const idle = employees.filter((e) => e.status === 'active' && !e.currentSite).length;
     const pending = employees.filter((e) => e.status === 'pending_deletion').length;
-    const idle = employees.filter((e) => e.status === 'idle').length;
     const arr = [];
-    if (active > 0) arr.push({ name: 'Active', value: active });
+    if (active > 0) arr.push({ name: 'Working', value: active });
+    if (idle > 0) arr.push({ name: 'Idle/No Site', value: idle });
     if (pending > 0) arr.push({ name: 'Pending Deletion', value: pending });
-    if (idle > 0) arr.push({ name: 'Idle', value: idle });
     if (arr.length === 0) arr.push({ name: 'No Data', value: 1 });
     return arr;
   }, [employees]);
 
-  // Compute site-wise breakdown
+  // Compute unassigned/idle count
+  const unassignedCount = useMemo(() => {
+    return employees.filter((e) => e.status === 'active' && !e.currentSite).length;
+  }, [employees]);
+
+  // Compute site-wise breakdown (only active sites, exclude Unassigned)
   const siteGroups: SiteGroup[] = useMemo(() => {
+    const activeSiteNames = new Set(sitesInfo.filter((s) => s.isActive).map((s) => s.name));
+    const siteIdMap = new Map(sitesInfo.map((s) => [s.name, s.id]));
     const map = new Map<string, { count: number; statuses: Record<string, number> }>();
     employees.forEach((emp) => {
-      const site = emp.currentSite || 'Unassigned';
+      // Only include employees assigned to active sites
+      if (!emp.currentSite || !activeSiteNames.has(emp.currentSite)) return;
+      const site = emp.currentSite;
       const existing = map.get(site) || { count: 0, statuses: {} };
       existing.count++;
       const st = emp.status || 'active';
@@ -289,9 +327,9 @@ export function DashboardPage() {
       map.set(site, existing);
     });
     return Array.from(map.entries())
-      .map(([name, data]) => ({ name, ...data }))
+      .map(([name, data]) => ({ name, ...data, siteId: siteIdMap.get(name) }))
       .sort((a, b) => b.count - a.count);
-  }, [employees]);
+  }, [employees, sitesInfo]);
 
   const metrics = [
     {
@@ -427,6 +465,30 @@ export function DashboardPage() {
         })}
       </div>
 
+      {/* Unassigned/Idle Employees Card */}
+      <Card
+        className="bg-amber-500/5 border-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer group"
+        onClick={() => navigateToEmployees('idle')}
+      >
+        <CardContent className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+              <UserX className="h-5 w-5 text-amber-400" />
+            </div>
+            <div>
+              <h3 className="text-sm font-semibold text-amber-400">Unassigned / Idle Employees</h3>
+              <p className="text-xs text-slate-500">Employees not assigned to any active site</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl font-bold text-amber-400">
+              {loadingEmployees ? <Skeleton className="h-8 w-8 bg-amber-500/20" /> : unassignedCount}
+            </span>
+            <ArrowRight className="h-5 w-5 text-amber-400/50 group-hover:text-amber-400 transition-colors" />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Monthly Attendance Bar Chart */}
@@ -474,7 +536,7 @@ export function DashboardPage() {
                   />
                   <Bar dataKey="present" name="Present" fill="#22c55e" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="absent" name="Absent" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="noSite" name="No Site" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="noSite" name="No Site / Idle" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="overtime" name="Overtime" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -542,13 +604,24 @@ export function DashboardPage() {
         </Card>
       </div>
 
-      {/* Site-wise Breakdown Table */}
+      {/* Site-wise Breakdown Table (only active sites) */}
       <Card className="bg-slate-800/50 border-slate-700/50 py-4">
         <CardHeader className="px-4">
-          <CardTitle className="text-base text-white flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-slate-400" />
-            Site-wise Employee Breakdown
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base text-white flex items-center gap-2">
+              <Building2 className="h-4 w-4 text-slate-400" />
+              Site-wise Employee Breakdown
+            </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-slate-700/50 border-slate-600 text-slate-200 hover:bg-emerald-600 hover:text-white hover:border-emerald-600 gap-1.5"
+              onClick={() => setCurrentView('sites')}
+            >
+              <Eye className="h-3.5 w-3.5" />
+              View Sites
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="px-4">
           {loadingEmployees ? (
@@ -560,7 +633,7 @@ export function DashboardPage() {
           ) : siteGroups.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Building2 className="h-8 w-8 text-slate-600 mb-2" />
-              <p className="text-sm text-slate-500">No site data available</p>
+              <p className="text-sm text-slate-500">No active sites with employees</p>
             </div>
           ) : (
             <div className="overflow-x-auto max-h-96 overflow-y-auto rounded-lg">

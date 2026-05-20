@@ -88,6 +88,9 @@ export async function GET(request: NextRequest) {
         gte: startDate,
         lt: endDate,
       },
+      employee: {
+        status: { not: 'deleted' },
+      },
     };
 
     if (employeeId) {

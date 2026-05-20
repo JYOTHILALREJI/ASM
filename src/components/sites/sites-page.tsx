@@ -462,6 +462,10 @@ export function SitesPage() {
   const [deleteSiteTarget, setDeleteSiteTarget] = useState<Site | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  // Deactivate confirmation dialog
+  const [deactivateSiteTarget, setDeactivateSiteTarget] = useState<Site | null>(null);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
+
   // Employee list state
   const [siteEmployees, setSiteEmployees] = useState<SiteEmployee[]>([]);
   const [loadingEmployees, setLoadingEmployees] = useState(false);
@@ -571,6 +575,12 @@ export function SitesPage() {
 
   /* ── Toggle site active status ── */
   const handleToggleActive = useCallback(async (site: Site) => {
+    // If deactivating, show confirmation dialog
+    if (site.isActive) {
+      setDeactivateSiteTarget(site);
+      return;
+    }
+    // If activating, just do it directly
     try {
       const res = await fetch('/api/sites', {
         method: 'PUT',
@@ -580,15 +590,15 @@ export function SitesPage() {
           name: site.name,
           clientName: site.clientName,
           projectName: site.projectName,
-          isActive: !site.isActive,
+          isActive: true,
         }),
       });
       const json = await res.json();
       if (json.success) {
         fetchSites();
         toast({
-          title: site.isActive ? 'Site Deactivated' : 'Site Activated',
-          description: `"${site.name}" has been ${site.isActive ? 'deactivated' : 'activated'}.`,
+          title: 'Site Activated',
+          description: `"${site.name}" has been activated.`,
         });
       } else {
         toast({ title: 'Error', description: json.error || 'Failed to update site', variant: 'destructive' });
@@ -597,6 +607,41 @@ export function SitesPage() {
       toast({ title: 'Error', description: 'Failed to update site', variant: 'destructive' });
     }
   }, [fetchSites]);
+
+  /* ── Confirm Deactivate site ── */
+  const handleConfirmDeactivate = useCallback(async () => {
+    if (!deactivateSiteTarget) return;
+    setDeactivateLoading(true);
+    try {
+      const res = await fetch('/api/sites', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: deactivateSiteTarget.id,
+          name: deactivateSiteTarget.name,
+          clientName: deactivateSiteTarget.clientName,
+          projectName: deactivateSiteTarget.projectName,
+          isActive: false,
+        }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        const unassignedCount = json.data?.unassignedCount || 0;
+        fetchSites();
+        toast({
+          title: 'Site Deactivated',
+          description: `"${deactivateSiteTarget.name}" has been deactivated.${unassignedCount > 0 ? ` ${unassignedCount} employee(s) have been set to idle/unassigned.` : ''}`,
+        });
+      } else {
+        toast({ title: 'Error', description: json.error || 'Failed to update site', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update site', variant: 'destructive' });
+    } finally {
+      setDeactivateLoading(false);
+      setDeactivateSiteTarget(null);
+    }
+  }, [deactivateSiteTarget, fetchSites]);
 
   /* ── Add site ── */
   const handleAddSite = useCallback(async () => {
@@ -1303,6 +1348,59 @@ export function SitesPage() {
             </Button>
             <Button variant="destructive" onClick={handleRemoveEmployees} disabled={removeEmpLoading}>
               {removeEmpLoading ? 'Removing...' : 'Remove'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Deactivate Site Confirmation Dialog */}
+      <Dialog open={!!deactivateSiteTarget} onOpenChange={(open) => !open && setDeactivateSiteTarget(null)}>
+        <DialogContent className="bg-slate-800 border-slate-700 text-slate-200">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-400" />
+              Deactivate Site
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Are you sure you want to deactivate <span className="text-white font-semibold">{deactivateSiteTarget?.name}</span>?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-3 px-1">
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 space-y-2">
+              <p className="text-amber-400 text-sm font-medium">This will affect employees:</p>
+              <ul className="text-xs text-slate-300 space-y-1 list-disc list-inside">
+                <li>All <span className="text-white font-medium">{deactivateSiteTarget?.employeeCount || 0}</span> employee(s) assigned to this site will be set to <span className="text-amber-400 font-medium">idle/unassigned</span></li>
+                <li>Team leaders of this site will lose their team leader status</li>
+                <li>The site will be moved to the Inactive tab</li>
+              </ul>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeactivateSiteTarget(null)}
+              className="bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600"
+              disabled={deactivateLoading}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeactivate}
+              disabled={deactivateLoading}
+              className="gap-2"
+            >
+              {deactivateLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deactivating...
+                </>
+              ) : (
+                <>
+                  <PowerOff className="h-4 w-4" />
+                  Deactivate Site
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
