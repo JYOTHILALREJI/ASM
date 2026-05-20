@@ -22,3 +22,28 @@ Stage Summary:
 - Inactive sites are hidden from dashboard breakdown
 - Employee page supports idle/working filtering from external navigation
 - Code pushed to https://github.com/JYOTHILALREJI/ASM.git (commit e9dd617)
+
+---
+Task ID: 2
+Agent: Main Agent
+Task: Implement attendance defaults, idle employee display, WhatsApp PDF, CV PDF download
+
+Work Log:
+- Modified attendance page: removed filter excluding idle employees, changed default status from 'not_marked' to 'present' (for site employees) or 'no_site' (for idle employees)
+- Updated ListView and CalendarView to show Idle badge for employees without a site
+- Updated SearchableEmployeeSelect dropdowns to show Idle badge
+- Modified employee page: fixed Idle badge to check for null/empty currentSite instead of 'Idle'
+- Added generateEmployeePDF function that creates professional PDFs with employee details (CV mode and report mode)
+- Changed WhatsApp button: now generates employee PDF, downloads it, and opens WhatsApp without phone number for contact selection
+- Added Download CV button: generates and downloads professional CV/resume PDF
+- Modified attendance API GET endpoint: auto-creates attendance records for all active employees (present for site employees, no_site for idle employees) when fetching attendance for a month
+- All changes pass lint check and dev server runs without errors
+- Pushed to GitHub (commit e15bd74)
+
+Stage Summary:
+- Attendance defaults to Present for site employees, No Site for idle employees
+- Idle employees are now included in attendance list and calendar views with Idle badge
+- Auto-creates attendance records in database when attendance is fetched for a month
+- WhatsApp sharing now generates PDF and lets user pick contact from WhatsApp
+- Download button generates professional CV PDF
+- Employee page correctly shows Idle badge for employees without site assignment
