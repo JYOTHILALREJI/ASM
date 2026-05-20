@@ -86,6 +86,7 @@ import { UniformEntryDetails } from './uniform-entry-details';
 
 interface UniformEntry {
   id: string;
+  uniformId: number;
   tokenNumber: number;
   employeeName: string;
   employeeId: string;
@@ -98,6 +99,7 @@ interface UniformEntry {
   previousTokenId: string | null;
   createdAt: string;
   renewalDate: string;
+  recordCount?: number;
   employee?: {
     id: string;
     fullName: string;
@@ -1379,11 +1381,13 @@ export function UniformRegistryPage() {
                 <TableHeader>
                   <TableRow className="border-slate-700/50 hover:bg-transparent">
                     <TableHead className="text-slate-400 font-medium">Token #</TableHead>
+                    <TableHead className="text-slate-400 font-medium">ID</TableHead>
                     <TableHead className="text-slate-400 font-medium">Employee</TableHead>
                     <TableHead className="text-slate-400 font-medium">Document</TableHead>
                     <TableHead className="text-slate-400 font-medium">Items</TableHead>
                     <TableHead className="text-slate-400 font-medium">Site</TableHead>
                     <TableHead className="text-slate-400 font-medium">Team Leader</TableHead>
+                    <TableHead className="text-slate-400 font-medium">Records</TableHead>
                     <TableHead className="text-slate-400 font-medium">Created</TableHead>
                     <TableHead className="text-slate-400 font-medium">Renewal</TableHead>
                     <TableHead className="text-slate-400 font-medium text-right">Actions</TableHead>
@@ -1407,6 +1411,11 @@ export function UniformRegistryPage() {
                               Renewal
                             </Badge>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-xs font-mono text-slate-400">
+                            {entry.uniformId}
+                          </span>
                         </TableCell>
                         <TableCell>
                           <p className="text-sm font-medium text-white">{entry.employeeName}</p>
@@ -1445,6 +1454,16 @@ export function UniformRegistryPage() {
                               <span className="text-slate-600">&mdash;</span>
                             )}
                           </span>
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={cn(
+                            'text-[10px] px-1.5 py-0',
+                            (entry.recordCount ?? 1) > 1
+                              ? 'bg-blue-500/15 text-blue-400 border-blue-500/25'
+                              : 'bg-slate-500/15 text-slate-400 border-slate-500/25'
+                          )}>
+                            {entry.recordCount ?? 1}
+                          </Badge>
                         </TableCell>
                         <TableCell>
                           <span className="text-xs text-slate-400">{formatDate(entry.createdAt)}</span>

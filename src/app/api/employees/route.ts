@@ -13,12 +13,12 @@ function decryptEmployee(employee: Record<string, unknown>) {
   return employee;
 }
 
-// Generate auto employeeId: ASM-YYYY-NNN
+// Generate auto employeeId: ASM-YYYY-NNN (auto-increment by 1)
 async function generateEmployeeId(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `ASM-${year}-`;
 
-  // Find existing employees with this year prefix
+  // Find the max employeeId with this prefix across ALL employees (including deleted for ID continuity)
   const employees = await db.employee.findMany({
     where: {
       employeeId: {
@@ -53,7 +53,21 @@ export async function GET(request: NextRequest) {
     };
 
     if (status && status !== 'all') {
-      where.status = status;
+      if (status === 'idle') {
+        // Idle = no site assigned
+        where.OR = [
+          { currentSite: null },
+          { currentSite: '' },
+        ];
+      } else if (status === 'working') {
+        // Working = has site assigned
+        where.AND = [
+          { currentSite: { not: null } },
+          { currentSite: { not: '' } },
+        ];
+      } else {
+        where.status = status;
+      }
     }
 
     const siteFilter = searchParams.get('site') || '';
@@ -116,8 +130,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate employee ID if not provided
-    const employeeId = body.employeeId || (await generateEmployeeId());
+    // Always auto-generate employee ID (auto-increment by 1)
+    const employeeId = await generateEmployeeId();
 
     // Check uniqueness
     const existing = await db.employee.findUnique({

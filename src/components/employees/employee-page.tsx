@@ -957,6 +957,8 @@ export function EmployeePage() {
                 <SelectContent className="bg-slate-800 border-slate-700">
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="working">Currently Working</SelectItem>
+                  <SelectItem value="idle">Idle (No Site)</SelectItem>
                   <SelectItem value="pending_deletion">Pending Deletion</SelectItem>
                 </SelectContent>
               </Select>
@@ -1304,13 +1306,17 @@ export function EmployeePage() {
                   </div>
 
                   <div className="space-y-2">
-                    <Label className="text-slate-300 text-sm">Employee ID</Label>
+                    <Label className="text-slate-300 text-sm">Employee ID <span className="text-slate-500 text-xs">(auto-generated)</span></Label>
                     <Input
-                      placeholder="ASM-2025-001"
+                      placeholder="Auto-generated on save"
                       value={formData.employeeId}
                       onChange={(e) => handleFormChange('employeeId', e.target.value)}
                       className="bg-slate-900 border-slate-600 text-white placeholder:text-slate-500 font-mono"
+                      disabled={!editingEmployee}
                     />
+                    {!editingEmployee && (
+                      <p className="text-[10px] text-slate-500">Employee ID is auto-assigned when creating a new employee</p>
+                    )}
                   </div>
 
                   {/* Nationality field with searchable dropdown */}

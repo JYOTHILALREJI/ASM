@@ -169,11 +169,12 @@ model CancellationRequest {
 
 model UniformRegistry {
   id             String   @id @default(cuid())
-  tokenNumber    Int      @unique
+  uniformId      Int      @unique // Separate ID field for reuse when deleting main record
+  tokenNumber    Int
   employeeName   String
   employeeId     String
   documentType   String   // "id" or "passport"
-  documentNumber String
+  documentNumber String   // Stored encrypted
   items          String   // JSON string: e.g. '{"uniform":true,"shoes":false,"helmet":true,"bottle":false,"safetyJacket":true}'
   siteName       String?
   teamLeaderName String?
@@ -188,4 +189,5 @@ model UniformRegistry {
   @@index([employeeId])
   @@index([tokenNumber])
   @@index([createdAt])
+  @@index([uniformId])
 }

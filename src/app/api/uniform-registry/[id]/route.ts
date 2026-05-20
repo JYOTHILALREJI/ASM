@@ -1,5 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { encrypt, decrypt } from '@/lib/crypto';
+
+// Helper: decrypt documentNumber for display
+function decryptEntry(entry: Record<string, unknown>) {
+  if (entry.documentNumber) {
+    entry.documentNumber = decrypt(entry.documentNumber as string);
+  }
+  return entry;
+}
 
 // GET /api/uniform-registry/[id] - Get single uniform registry entry
 export async function GET(
@@ -34,11 +43,11 @@ export async function GET(
     return NextResponse.json({
       success: true,
       data: {
-        entry: {
+        entry: decryptEntry({
           ...entry,
           createdAt: entry.createdAt.toISOString(),
           renewalDate: entry.renewalDate.toISOString(),
-        },
+        }),
       },
     });
   } catch (error) {
@@ -50,7 +59,7 @@ export async function GET(
   }
 }
 
-// PUT /api/uniform-registry/[id] - Update a uniform registry entry
+// PUT /api/uniform-registry/[id] - Update a uniform registry entry (all fields editable)
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -68,16 +77,42 @@ export async function PUT(
       );
     }
 
-    // Only allow updating specific fields
+    // Build update data - all fields are editable
     const updateData: Record<string, unknown> = {};
+
+    if (body.tokenNumber !== undefined) {
+      updateData.tokenNumber = parseInt(body.tokenNumber, 10);
+    }
+    if (body.uniformId !== undefined) {
+      updateData.uniformId = parseInt(body.uniformId, 10);
+    }
+    if (body.employeeName !== undefined) {
+      updateData.employeeName = body.employeeName;
+    }
+    if (body.documentType !== undefined) {
+      updateData.documentType = body.documentType;
+    }
+    if (body.documentNumber !== undefined) {
+      // Encrypt documentNumber
+      updateData.documentNumber = encrypt(body.documentNumber);
+    }
     if (body.items !== undefined) {
       updateData.items = typeof body.items === 'string' ? body.items : JSON.stringify(body.items);
     }
     if (body.siteName !== undefined) {
-      updateData.siteName = body.siteName;
+      updateData.siteName = body.siteName || null;
     }
     if (body.teamLeaderName !== undefined) {
-      updateData.teamLeaderName = body.teamLeaderName;
+      updateData.teamLeaderName = body.teamLeaderName || null;
+    }
+
+    // If createdAt is being changed, recalculate renewalDate (6 months from new createdAt)
+    if (body.createdAt !== undefined) {
+      const newCreatedDate = new Date(body.createdAt);
+      updateData.createdAt = newCreatedDate;
+      const newRenewalDate = new Date(newCreatedDate);
+      newRenewalDate.setMonth(newRenewalDate.getMonth() + 6);
+      updateData.renewalDate = newRenewalDate;
     }
 
     const entry = await db.uniformRegistry.update({
@@ -99,17 +134,18 @@ export async function PUT(
     return NextResponse.json({
       success: true,
       data: {
-        entry: {
+        entry: decryptEntry({
           ...entry,
           createdAt: entry.createdAt.toISOString(),
           renewalDate: entry.renewalDate.toISOString(),
-        },
+        }),
       },
     });
   } catch (error) {
     console.error('[UNIFORM_REGISTRY_PUT]', error);
+    const message = error instanceof Error ? error.message : 'Failed to update uniform registry entry';
     return NextResponse.json(
-      { success: false, error: 'Failed to update uniform registry entry' },
+      { success: false, error: message },
       { status: 500 }
     );
   }

@@ -82,6 +82,7 @@ interface MonthlyChartData {
   present: number;
   absent: number;
   overtime: number;
+  noSite: number;
 }
 
 // Generate all dates of a given month (up to today)
@@ -257,6 +258,7 @@ export function DashboardPage() {
         present: monthRecords.filter((r) => r.status === 'present').length,
         absent: monthRecords.filter((r) => r.status === 'absent').length,
         overtime: monthRecords.filter((r) => r.status === 'overtime').length,
+        noSite: monthRecords.filter((r) => r.status === 'no_site').length,
       });
     }
     return data;
@@ -472,6 +474,7 @@ export function DashboardPage() {
                   />
                   <Bar dataKey="present" name="Present" fill="#22c55e" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="absent" name="Absent" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="noSite" name="No Site" fill="#f59e0b" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="overtime" name="Overtime" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
