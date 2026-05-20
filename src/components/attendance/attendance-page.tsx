@@ -278,9 +278,13 @@ function SearchableEmployeeSelect({
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span className="truncate">{selectedEmployee.fullName}</span>
             <span className="text-slate-500 text-xs">({selectedEmployee.employeeId})</span>
-            {selectedEmployee.currentSite && (
+            {selectedEmployee.currentSite ? (
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
                 {selectedEmployee.currentSite}
+              </Badge>
+            ) : (
+              <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-400 border-amber-500/25 shrink-0">
+                Idle
               </Badge>
             )}
           </div>
@@ -333,9 +337,13 @@ function SearchableEmployeeSelect({
                 >
                   <span className="truncate flex-1">{emp.fullName}</span>
                   <span className="text-slate-500 text-xs shrink-0">({emp.employeeId})</span>
-                  {emp.currentSite && (
+                  {emp.currentSite ? (
                     <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30 shrink-0">
                       {emp.currentSite}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-400 border-amber-500/25 shrink-0">
+                      Idle
                     </Badge>
                   )}
                 </button>
@@ -495,14 +503,16 @@ function ListView({
                         {emp.currentSite}
                       </Badge>
                     ) : (
-                      <span className="text-xs text-slate-500">&mdash;</span>
+                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-400 border-amber-500/25">
+                        Idle
+                      </Badge>
                     )}
                   </div>
                   <div className="flex-1 flex">
                     {displayDays.map((day) => {
                       const dateStr = formatDate(day, monthStr, yearStr);
                       const record = attendanceMap.get(`${emp.id}-${dateStr}`);
-                      const status = record?.status || 'not_marked';
+                      const status = record?.status || (emp.currentSite ? 'present' : 'no_site');
                       const cfg = STATUS_CONFIG[status];
                       const isFri = isFriday(year, month, day);
                       const recent = isRecentDay(day);
@@ -522,7 +532,7 @@ function ListView({
                               setDropdown({
                                 employeeId: emp.id,
                                 date: dateStr,
-                                status,
+                                status: record?.status || (emp.currentSite ? 'present' : 'no_site'),
                                 overtimeHours: record?.overtimeHours || null,
                                 position: { top: rect.top, left: rect.left },
                               });
@@ -643,9 +653,12 @@ function CalendarView({
     (day: number) => {
       const dateStr = formatDate(day, monthStr, yearStr);
       const record = attendanceMap.get(`${selectedEmployeeId}-${dateStr}`);
-      return record?.status || 'not_marked';
+      if (record) return record.status;
+      // Default: present for employees with site, no_site for idle employees
+      const emp = employees.find(e => e.id === selectedEmployeeId);
+      return emp?.currentSite ? 'present' : 'no_site';
     },
-    [attendanceMap, selectedEmployeeId, monthStr, yearStr]
+    [attendanceMap, selectedEmployeeId, monthStr, yearStr, employees]
   );
 
   if (loading) {
@@ -682,10 +695,14 @@ function CalendarView({
               <div className="flex items-center gap-2">
                 <span className="text-sm text-white font-medium">{selectedEmployee.fullName}</span>
                 <span className="text-xs text-slate-500">({selectedEmployee.employeeId})</span>
-                {selectedEmployee.currentSite && (
+                {selectedEmployee.currentSite ? (
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
                     <MapPin className="h-2.5 w-2.5 mr-0.5" />
                     {selectedEmployee.currentSite}
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-400 border-amber-500/25">
+                    Idle
                   </Badge>
                 )}
               </div>
@@ -764,7 +781,7 @@ function CalendarView({
                             setDropdown({
                               employeeId: selectedEmployeeId,
                               date: dateStr,
-                              status,
+                              status: record?.status || (selectedEmployee?.currentSite ? 'present' : 'no_site'),
                               overtimeHours: record?.overtimeHours || null,
                               position: { top: rect.top, left: rect.left },
                             });
@@ -1027,9 +1044,7 @@ export function AttendancePage() {
         const data = await res.json();
         if (cancelled) return;
         if (data.success) {
-          const emps: Employee[] = (data.data.employees || []).filter(
-            (e: Employee) => e.currentSite !== 'Idle'
-          );
+          const emps: Employee[] = (data.data.employees || []);
           setEmployees(emps);
           setTotalEmployees(data.data.total || 0);
           if (!selectedEmployeeId && emps.length > 0) {

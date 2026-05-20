@@ -73,6 +73,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/store/auth-store';
 import { useAppStore } from '@/store/app-store';
+import jsPDF from 'jspdf';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -433,6 +434,123 @@ function compressImage(file: File, maxWidth = 300, quality = 0.8): Promise<strin
     reader.onerror = () => reject(new Error('Failed to read file'));
     reader.readAsDataURL(file);
   });
+}
+
+// ─── PDF Generation Helper ────────────────────────────────────────────────
+
+function generateEmployeePDF(employee: Employee, asCV: boolean = false): jsPDF {
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const margin = 20;
+  const contentWidth = pageWidth - 2 * margin;
+  let y = margin;
+
+  // Header
+  doc.setFillColor(15, 23, 42); // slate-900
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  if (asCV) {
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(22);
+    doc.setFont('helvetica', 'bold');
+    doc.text(employee.fullName, margin, y + 10);
+
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184); // slate-400
+    const subtext = [employee.position, employee.employeeId].filter(Boolean).join(' · ');
+    doc.text(subtext, margin, y + 20);
+  } else {
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('ARABIAN SHIELD MANPOWER', margin, y + 12);
+
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(148, 163, 184);
+    doc.text('Employee Details Report', margin, y + 22);
+  }
+
+  y = 50;
+
+  // Helper functions
+  const addSection = (title: string) => {
+    if (y > 260) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setFillColor(30, 41, 59); // slate-800
+    doc.rect(margin, y, contentWidth, 8, 'F');
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.text(title.toUpperCase(), margin + 3, y + 5.5);
+    y += 12;
+  };
+
+  const addField = (label: string, value: string | null | undefined) => {
+    if (y > 270) {
+      doc.addPage();
+      y = margin;
+    }
+    doc.setTextColor(100, 116, 139); // slate-500
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.text(label + ':', margin, y);
+
+    doc.setTextColor(226, 232, 240); // slate-200
+    doc.setFont('helvetica', 'bold');
+    doc.text(value || '—', margin + 50, y);
+    y += 6;
+  };
+
+  // Personal Information
+  addSection('Personal Information');
+  addField('Full Name', employee.fullName);
+  addField('Employee ID', employee.employeeId);
+  addField('Nationality', employee.nationality);
+  addField('Date of Birth', employee.dateOfBirth ? new Date(employee.dateOfBirth).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null);
+  addField('Phone', employee.phone);
+  addField('Email', employee.email);
+  addField('Address', employee.address);
+  addField('Emergency Contact', employee.emergencyContact);
+
+  // Employment Information
+  addSection('Employment Information');
+  addField('Position', employee.position);
+  addField('Company', employee.companyName);
+  addField('Join Date', employee.joinDate ? new Date(employee.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null);
+  addField('Current Site', employee.currentSite || 'Not Assigned');
+  addField('Status', employee.status);
+  addField('Team Leader', employee.isTeamLeader ? 'Yes' : 'No');
+  addField('Rating', `${employee.rating.toFixed(1)} / 5.0`);
+
+  // Document Information
+  addSection('Document Information');
+  addField('Passport Number', employee.passportNumber);
+  addField('Passport Status', employee.passportStatus);
+  addField('ID Number', employee.idNumber);
+  addField('ID Status', employee.idStatus);
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 287, pageWidth, 10, 'F');
+    doc.setTextColor(100, 116, 139);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text(
+      `Arabian Shield Manpower · Employee: ${employee.fullName} (${employee.employeeId})`,
+      margin,
+      293
+    );
+    doc.text(`Page ${i} of ${pageCount}`, pageWidth - margin, 293, { align: 'right' });
+  }
+
+  return doc;
 }
 
 // ─── Main Component ──────────────────────────────────────────────────────
@@ -819,12 +937,38 @@ export function EmployeePage() {
     }
   };
 
-  const handleWhatsApp = (employee: Employee) => {
-    const phone = employee.phone?.replace(/[^0-9]/g, '');
-    if (phone) {
-      window.open(`https://wa.me/${phone}`, '_blank');
-    } else {
-      toast({ title: 'No Phone Number', description: 'This employee has no phone number on file.', variant: 'destructive' });
+  const handleWhatsApp = async (employee: Employee) => {
+    try {
+      // Generate the employee PDF
+      const doc = generateEmployeePDF(employee, false);
+      const fileName = `${employee.fullName.replace(/\s+/g, '_')}_${employee.employeeId}.pdf`;
+
+      // Download the PDF
+      doc.save(fileName);
+
+      // Open WhatsApp without a phone number so the user picks a contact
+      window.open('https://wa.me/', '_blank');
+
+      toast({
+        title: 'PDF Downloaded',
+        description: `Employee details PDF saved. Share it via WhatsApp by attaching the downloaded file.`,
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to generate PDF', variant: 'destructive' });
+    }
+  };
+
+  const handleDownloadCV = (employee: Employee) => {
+    try {
+      const doc = generateEmployeePDF(employee, true);
+      const fileName = `CV_${employee.fullName.replace(/\s+/g, '_')}_${employee.employeeId}.pdf`;
+      doc.save(fileName);
+      toast({
+        title: 'CV Downloaded',
+        description: `${employee.fullName}'s CV has been downloaded as PDF.`,
+      });
+    } catch {
+      toast({ title: 'Error', description: 'Failed to generate CV PDF', variant: 'destructive' });
     }
   };
 
@@ -1048,12 +1192,12 @@ export function EmployeePage() {
                         <span className="text-sm text-slate-300">{emp.position || '—'}</span>
                       </TableCell>
                       <TableCell>
-                        {emp.currentSite === 'Idle' ? (
+                        {!emp.currentSite ? (
                           <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/25 text-xs">
                             Idle
                           </Badge>
                         ) : (
-                          <span className="text-sm text-slate-300">{emp.currentSite || '—'}</span>
+                          <span className="text-sm text-slate-300">{emp.currentSite}</span>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1144,10 +1288,10 @@ export function EmployeePage() {
                     <div>
                       <p className="text-xs text-slate-500">Site</p>
                       <p className="text-sm text-slate-300">
-                        {emp.currentSite === 'Idle' ? (
+                        {!emp.currentSite ? (
                           <span className="text-amber-400">Idle</span>
                         ) : (
-                          emp.currentSite || '—'
+                          emp.currentSite
                         )}
                       </p>
                     </div>
@@ -1445,7 +1589,7 @@ export function EmployeePage() {
                           if (v === '__new__') {
                             setShowNewSiteInput(true);
                           } else if (v === '__idle__') {
-                            handleFormChange('currentSite', 'Idle');
+                            handleFormChange('currentSite', '');
                           } else if (v === '__none__') {
                             handleFormChange('currentSite', '');
                           } else {
@@ -1798,7 +1942,7 @@ export function EmployeePage() {
                         { icon: Briefcase, label: 'Position', value: viewingEmployee.position },
                         { icon: Calendar, label: 'Join Date', value: viewingEmployee.joinDate ? new Date(viewingEmployee.joinDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : null },
                         { icon: Building2, label: 'Company', value: viewingEmployee.companyName },
-                        { icon: Building2, label: 'Current Site', value: viewingEmployee.currentSite, special: viewingEmployee.currentSite === 'Idle' ? 'amber' : undefined },
+                        { icon: Building2, label: 'Current Site', value: viewingEmployee.currentSite || 'Idle', special: !viewingEmployee.currentSite ? 'amber' : undefined },
                       ].map((item) => (
                         <div key={item.label} className="flex items-start gap-3 p-3 rounded-lg bg-slate-900/50">
                           <item.icon className={`h-4 w-4 mt-0.5 flex-shrink-0 ${item.special === 'amber' ? 'text-amber-400' : 'text-slate-500'}`} />
@@ -1939,13 +2083,12 @@ export function EmployeePage() {
                 </Button>
                 <Button
                   variant="ghost"
-                  className="text-slate-400 hover:text-white hover:bg-slate-700 gap-1.5"
-                  onClick={() => {
-                    toast({ title: 'Coming Soon', description: 'PDF export will be available soon.' });
-                  }}
+                  className="text-slate-400 hover:text-green-400 hover:bg-green-500/10 gap-1.5"
+                  onClick={() => viewingEmployee && handleDownloadCV(viewingEmployee)}
+                  title="Download CV"
                 >
                   <Download className="h-4 w-4" />
-                  Download PDF
+                  Download CV
                 </Button>
                 <div className="flex-1" />
                 <Button

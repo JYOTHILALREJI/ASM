@@ -97,6 +97,68 @@ export async function GET(request: NextRequest) {
       where.employeeId = employeeId;
     }
 
+    // Auto-create attendance records for employees without records
+    // - "no_site" for idle employees (no site assigned)
+    // - "present" for employees with a site assignment
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const maxDay = (year === today.getFullYear() && month === today.getMonth() + 1)
+      ? today.getDate()
+      : new Date(year, month, 0).getDate();
+
+    if (maxDay > 0) {
+      // Find all active employees (not deleted)
+      const allActiveEmployees = await db.employee.findMany({
+        where: {
+          status: { not: 'deleted' },
+        },
+        select: { id: true, currentSite: true },
+      });
+
+      // Get all existing attendance records for this month
+      const existingRecords = await db.attendance.findMany({
+        where: {
+          date: { gte: startDate, lt: endDate },
+        },
+        select: { employeeId: true, date: true },
+      });
+
+      // Build a set of existing records for quick lookup
+      const existingSet = new Set(
+        existingRecords.map(r => `${r.employeeId}-${r.date}`)
+      );
+
+      // Create missing records
+      const recordsToCreate: { employeeId: string; date: string; status: string }[] = [];
+      for (const emp of allActiveEmployees) {
+        const isIdle = !emp.currentSite;
+        const defaultStatus = isIdle ? 'no_site' : 'present';
+
+        for (let day = 1; day <= maxDay; day++) {
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          if (!existingSet.has(`${emp.id}-${dateStr}`)) {
+            recordsToCreate.push({
+              employeeId: emp.id,
+              date: dateStr,
+              status: defaultStatus,
+            });
+          }
+        }
+      }
+
+      // Batch create missing records
+      if (recordsToCreate.length > 0) {
+        const CHUNK_SIZE = 100;
+        for (let i = 0; i < recordsToCreate.length; i += CHUNK_SIZE) {
+          const chunk = recordsToCreate.slice(i, i + CHUNK_SIZE);
+          await db.attendance.createMany({
+            data: chunk,
+            skipDuplicates: true,
+          });
+        }
+      }
+    }
+
     const records = await db.attendance.findMany({
       where,
       orderBy: { date: 'asc' },
